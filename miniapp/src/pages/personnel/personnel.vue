@@ -1,12 +1,7 @@
 <template>
 	<view>
-		<view class="page-header">
-			<view class="store-selector" @click="uiStore.openModal('store')">{{ dataStore.currentTenant?.name }} &#9662;
-			</view>
-			<IconButton circle class="user-avatar" @click="uiStore.openModal('userOptions')">
-				{{ userStore.userInfo?.name?.[0] || '管' }}
-			</IconButton>
-		</view>
+		<!-- [重构] 使用 MainHeader 组件 -->
+		<MainHeader />
 		<view class="page-content page-content-with-tabbar-fab">
 			<template v-if="dataStore.members.length > 0">
 				<ListItem v-for="member in dataStore.members" :key="member.id" @click="navigateToDetail(member.id)">
@@ -24,31 +19,30 @@
 			</view>
 		</view>
 
-		<AppFab v-if="canInvite" @click="uiStore.openModal('invite')" />
+		<AppFab v-if="canInvite" @click="uiStore.openModal(MODAL_KEYS.INVITE)" />
 
 	</view>
 </template>
 
 <script setup lang="ts">
-	import IconButton from '@/components/IconButton.vue'; // 引入 IconButton 组件
-	import { ref, computed } from 'vue';
+	import { computed } from 'vue';
 	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import { useUiStore } from '@/store/ui'; // [核心新增]
+	import { useUiStore } from '@/store/ui';
+	import { MODAL_KEYS } from '@/constants/modalKeys';
+	import MainHeader from '@/components/MainHeader.vue'; // [新增]
 	import AppFab from '@/components/AppFab.vue';
-	import ListItem from '@/components/ListItem.vue'; // 导入 ListItem 组件
+	import ListItem from '@/components/ListItem.vue';
 	import type { Role } from '@/types/api';
-	import { formatChineseDate } from '@/utils/format'; // [核心新增] 引入格式化函数
+	import { formatChineseDate } from '@/utils/format';
 
-	// [核心修改] 移除 isLoading 状态，改为在 onShow 钩子中直接加载数据
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
-	const uiStore = useUiStore(); // [核心新增]
+	const uiStore = useUiStore();
 
 
 	onShow(async () => {
-		// [重构] 仅当数据未加载时才去获取，不再使用全屏 loading
 		if (!dataStore.dataLoaded.members) {
 			await dataStore.fetchMembersData();
 		}

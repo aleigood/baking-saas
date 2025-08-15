@@ -89,3 +89,36 @@ export function deleteRecipeVersion(familyId : string, versionId : string) : Pro
 		method: 'DELETE',
 	});
 }
+
+/**
+ * [新增] 停用一个配方家族
+ * @param familyId 配方家族的ID
+ */
+export function discontinueRecipe(familyId : string) : Promise<any> {
+	return request({
+		url: `/recipes/${familyId}/discontinue`,
+		method: 'PATCH',
+	});
+}
+
+/**
+ * [新增] 恢复一个已停用的配方家族
+ * @param familyId 配方家族的ID
+ */
+export function restoreRecipe(familyId : string) : Promise<any> {
+	return request({
+		url: `/recipes/${familyId}/restore`,
+		method: 'PATCH',
+	});
+}
+
+/**
+ * [新增] 删除一个配方家族
+ * @param familyId 配方家族的ID
+ */
+export function deleteRecipe(familyId : string) : Promise<any> {
+	return request({
+		url: `/recipes/${familyId}`,
+		method: 'DELETE',
+	});
+}

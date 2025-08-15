@@ -1,61 +1,70 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import { MODAL_KEYS, type ModalKey } from '@/constants/modalKeys';
 
 // 定义 UI 相关的状态
 export const useUiStore = defineStore('ui', () => {
-	// 当前激活的 Tab，默认为 'production'
 	const activeTab = ref('production');
 
-	// 全局模态框的显示状态
-	const showStoreModal = ref(false);
-	const showUserOptionsModal = ref(false); // [修改] 从 showUserMenu 重命名
-	const showLogoutConfirmModal = ref(false); // [新增] 退出登录确认框状态
-	const showInviteModal = ref(false);
-	const showTaskActionsModal = ref(false);
-	const showProcurementActionsModal = ref(false);
+	const modalVisibility = ref<Record<ModalKey, boolean>>({
+		[MODAL_KEYS.STORE]: false,
+		[MODAL_KEYS.USER_OPTIONS]: false,
+		[MODAL_KEYS.LOGOUT_CONFIRM]: false,
+		[MODAL_KEYS.INVITE]: false,
+		[MODAL_KEYS.TASK_ACTIONS]: false,
+		[MODAL_KEYS.PROCUREMENT_ACTIONS]: false,
+		// [新增] 初始化新模态框的状态
+		[MODAL_KEYS.INGREDIENT_ACTIONS]: false,
+		[MODAL_KEYS.DELETE_INGREDIENT_CONFIRM]: false,
+		[MODAL_KEYS.RECIPE_ACTIONS]: false,
+		[MODAL_KEYS.DISCONTINUE_RECIPE_CONFIRM]: false,
+		[MODAL_KEYS.RESTORE_RECIPE_CONFIRM]: false,
+		[MODAL_KEYS.DELETE_RECIPE_CONFIRM]: false,
+	});
 
+	const showStoreModal = computed(() => modalVisibility.value[MODAL_KEYS.STORE]);
+	const showUserOptionsModal = computed(() => modalVisibility.value[MODAL_KEYS.USER_OPTIONS]);
+	const showLogoutConfirmModal = computed(() => modalVisibility.value[MODAL_KEYS.LOGOUT_CONFIRM]);
+	const showInviteModal = computed(() => modalVisibility.value[MODAL_KEYS.INVITE]);
+	const showTaskActionsModal = computed(() => modalVisibility.value[MODAL_KEYS.TASK_ACTIONS]);
+	const showProcurementActionsModal = computed(() => modalVisibility.value[MODAL_KEYS.PROCUREMENT_ACTIONS]);
+	// [新增] 暴露新模态框的 computed 状态
+	const showIngredientActionsModal = computed(() => modalVisibility.value[MODAL_KEYS.INGREDIENT_ACTIONS]);
+	const showDeleteIngredientConfirmModal = computed(() => modalVisibility.value[MODAL_KEYS.DELETE_INGREDIENT_CONFIRM]);
+	const showRecipeActionsModal = computed(() => modalVisibility.value[MODAL_KEYS.RECIPE_ACTIONS]);
+	const showDiscontinueRecipeConfirmModal = computed(() => modalVisibility.value[MODAL_KEYS.DISCONTINUE_RECIPE_CONFIRM]);
+	const showRestoreRecipeConfirmModal = computed(() => modalVisibility.value[MODAL_KEYS.RESTORE_RECIPE_CONFIRM]);
+	const showDeleteRecipeConfirmModal = computed(() => modalVisibility.value[MODAL_KEYS.DELETE_RECIPE_CONFIRM]);
 
-	// [修改] isAnyModalOpen 现在也会追踪新的模态框状态
-	const isAnyModalOpen = computed(() => showStoreModal.value || showUserOptionsModal.value || showLogoutConfirmModal.value || showInviteModal.value || showTaskActionsModal.value || showProcurementActionsModal.value);
+	const isAnyModalOpen = computed(() => Object.values(modalVisibility.value).some(isOpen => isOpen));
 
-	/**
-	 * 设置当前激活的 Tab
-	 * @param tabKey Tab的唯一标识
-	 */
 	function setActiveTab(tabKey : string) {
 		activeTab.value = tabKey;
 	}
 
-	// [修改] openModal 和 closeModal 现在也能处理 'userOptions' 和 'logoutConfirm' 模态框
-	function openModal(modalName : 'store' | 'userOptions' | 'logoutConfirm' | 'invite' | 'taskActions' | 'procurementActions') {
-		if (modalName === 'store') showStoreModal.value = true;
-		if (modalName === 'userOptions') showUserOptionsModal.value = true;
-		if (modalName === 'logoutConfirm') showLogoutConfirmModal.value = true;
-		if (modalName === 'invite') showInviteModal.value = true;
-		if (modalName === 'taskActions') showTaskActionsModal.value = true;
-		if (modalName === 'procurementActions') showProcurementActionsModal.value = true;
+	function openModal(modalName : ModalKey) {
+		modalVisibility.value[modalName] = true;
 	}
 
-	function closeModal(modalName : 'store' | 'userOptions' | 'logoutConfirm' | 'invite' | 'taskActions' | 'procurementActions') {
-		if (modalName === 'store') showStoreModal.value = false;
-		if (modalName === 'userOptions') showUserOptionsModal.value = false;
-		if (modalName === 'logoutConfirm') showLogoutConfirmModal.value = false;
-		if (modalName === 'invite') showInviteModal.value = false;
-		if (modalName === 'taskActions') showTaskActionsModal.value = false;
-		if (modalName === 'procurementActions') showProcurementActionsModal.value = false;
+	function closeModal(modalName : ModalKey) {
+		modalVisibility.value[modalName] = false;
 	}
-
 
 	return {
 		activeTab,
 		setActiveTab,
-		// 暴露状态和方法
 		showStoreModal,
 		showUserOptionsModal,
 		showLogoutConfirmModal,
 		showInviteModal,
 		showTaskActionsModal,
 		showProcurementActionsModal,
+		showIngredientActionsModal,
+		showDeleteIngredientConfirmModal,
+		showRecipeActionsModal,
+		showDiscontinueRecipeConfirmModal,
+		showRestoreRecipeConfirmModal,
+		showDeleteRecipeConfirmModal,
 		openModal,
 		closeModal,
 		isAnyModalOpen,

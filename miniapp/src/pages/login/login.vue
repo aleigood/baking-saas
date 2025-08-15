@@ -1,13 +1,11 @@
 <template>
 	<view class="login-container">
-		<!-- [核心新增] 添加 Logo 图片 -->
 		<image class="logo" src="/static/logo.png" mode="aspectFit"></image>
 		<h2 class="title">烘焙SaaS管理端</h2>
 		<view class="form-card">
 			<input class="input-field" v-model="form.phone" placeholder="请输入手机号" type="tel" />
 			<input class="input-field" v-model="form.password" type="password" placeholder="请输入密码" />
 			<AppButton type="primary" full-width :loading="loading" @click="handleLogin">
-				<!-- [核心修改] 根据加载状态切换按钮文字 -->
 				{{ loading ? '登录中...' : '登 录' }}
 			</AppButton>
 		</view>
@@ -17,11 +15,13 @@
 	import { reactive, ref } from 'vue';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
+	import { useToastStore } from '@/store/toast'; // [新增] 引入 toast store
 	import AppButton from '@/components/AppButton.vue';
 
 	const loading = ref(false);
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
+	const toastStore = useToastStore(); // [新增] 获取 toast store 实例
 
 	const form = reactive({
 		phone: '13966666666',
@@ -34,7 +34,8 @@
 		if (loginSuccess) {
 			await userStore.fetchUserInfo();
 			await dataStore.fetchTenants();
-			uni.showToast({ title: '登录成功', icon: 'success' });
+			// [修改] 使用新的 Toast 系统
+			toastStore.show({ message: '登录成功', type: 'success' });
 			uni.reLaunch({ url: '/pages/main/main' });
 		}
 		loading.value = false;
@@ -46,7 +47,6 @@
 	.login-container {
 		display: flex;
 		flex-direction: column;
-		/* [核心修改] 改变对齐方式，并增加顶部内边距 */
 		justify-content: flex-start;
 		align-items: center;
 		height: 100vh;
@@ -56,7 +56,6 @@
 		box-sizing: border-box;
 	}
 
-	/* [核心新增] Logo 样式 */
 	.logo {
 		width: 80px;
 		height: 80px;
@@ -66,10 +65,8 @@
 	.title {
 		color: var(--primary-color);
 		font-size: 24px;
-		/* 稍微缩小标题 */
 		font-weight: 600;
 		margin-bottom: 30px;
-		/* 调整与卡片的间距 */
 	}
 
 	.form-card {

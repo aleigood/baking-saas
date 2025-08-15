@@ -1,8 +1,11 @@
 <template>
-	<!-- 专门用于显示配方版本列表的组件 -->
 	<view class="card card-full-bleed-list">
 		<view class="card-title-wrapper">
-			<span class="card-title">配方版本</span>
+			<!-- [修改] 将标题和标签放在一个容器中，以实现紧邻效果 -->
+			<view class="title-with-tag">
+				<span class="card-title">配方版本</span>
+				<span v-if="isDiscontinued" class="status-tag discontinued">已停用</span>
+			</view>
 		</view>
 		<template v-if="versions.length > 0">
 			<ListItem v-for="version in versions" :key="version.id"
@@ -34,33 +37,31 @@
 	import ListItem from '@/components/ListItem.vue';
 	import AppButton from '@/components/AppButton.vue';
 
-	// 定义组件接收的属性
 	defineProps({
-		// 配方版本列表
 		versions: {
 			type: Array as PropType<RecipeVersion[]>,
 			default: () => []
 		},
-		// 当前选中的版本ID
 		selectedVersionId: {
 			type: String as PropType<string | null>,
 			default: null
 		},
-		// 是否有编辑权限
 		canEdit: {
+			type: Boolean,
+			default: false
+		},
+		isDiscontinued: {
 			type: Boolean,
 			default: false
 		}
 	});
 
-	// 定义组件可以向外触发的事件
 	defineEmits(['select-version', 'create-version', 'longpress-version']);
 </script>
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	// 版本列表项的样式
 	.list-item {
 		position: relative;
 		cursor: pointer;
@@ -98,6 +99,19 @@
 		padding-right: 20px;
 	}
 
+	/* [新增] 标题和标签的容器样式 */
+	.title-with-tag {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		/* 标题和标签之间的间距 */
+	}
+
+	.title-with-tag .card-title {
+		margin-bottom: 0;
+		/* 移除标题的下边距 */
+	}
+
 	.status-tag {
 		padding: 4px 12px;
 		border-radius: 15px;
@@ -107,6 +121,11 @@
 
 		&.active {
 			background-color: #5ac725;
+		}
+
+		&.discontinued {
+			background-color: #fee2e2;
+			color: #991b1b;
 		}
 	}
 </style>

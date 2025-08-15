@@ -1,13 +1,8 @@
 <template>
 	<view class="page-container">
-		<view class="page-header">
-			<view class="detail-header">
-				<view class="back-btn" @click="navigateBack">&#10094;</view>
-				<h2 class="detail-title">任务详情</h2>
-			</view>
-		</view>
+		<!-- [重构] 使用 DetailHeader 组件 -->
+		<DetailHeader title="任务详情" />
 		<view class="page-content" v-if="!isLoading && task">
-			<!-- [核心修改] 将详情信息用标签形式展示在页面顶部 -->
 			<view class="detail-page">
 				<view class="tag-group">
 					<span class="tag">日期: {{ formattedDate }}</span>
@@ -17,7 +12,6 @@
 
 				<view class="task-summary-card">
 					<view class="product-grid-title">产品列表</view>
-					<!-- [核心修改] 按配方大类对产品进行分组展示 -->
 					<view v-for="group in groupedProducts" :key="group.familyName" class="product-group">
 						<view class="product-group-title">{{ group.familyName }}</view>
 						<view class="product-grid">
@@ -43,17 +37,15 @@
 					</view>
 				</view>
 
-				<!-- [核心修改] 点击按钮现在会打开确认模态框 -->
-				<button class="btn btn-primary btn-full-width" @click="openCompleteTaskModal">
+				<AppButton type="primary" full-width @click="openCompleteTaskModal">
 					完成任务
-				</button>
+				</AppButton>
 			</view>
 		</view>
 		<view class="loading-spinner" v-else>
 			<text>加载中...</text>
 		</view>
 
-		<!-- [核心新增] 完成任务的确认模态框 -->
 		<AppModal v-model:visible="showCompleteTaskModal" title="确认完成任务">
 			<view class="modal-prompt-text">
 				您确定要完成这个任务吗？
@@ -76,24 +68,27 @@
 	import { onLoad } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
+	import { useToastStore } from '@/store/toast';
 	import type { ProductionTaskDto } from '@/types/api';
 	import { getTask, updateTaskStatus, completeTask } from '@/api/tasks';
 	import AppModal from '@/components/AppModal.vue';
-	import AppButton from '@/components/AppButton.vue'; // [核心新增]
+	import AppButton from '@/components/AppButton.vue';
+	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader 组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
+	const toastStore = useToastStore();
 
 	const isLoading = ref(true);
-	const isSubmitting = ref(false); // [核心新增]
+	const isSubmitting = ref(false);
 	const task = ref<ProductionTaskDto | null>(null);
 	const openCardName = ref('');
-	const showCompleteTaskModal = ref(false); // [核心新增]
+	const showCompleteTaskModal = ref(false);
 
 	onLoad(async (options) => {
 		const taskId = options?.taskId;
 		if (!taskId) {
-			uni.showToast({ title: '无效的任务ID', icon: 'none' });
+			toastStore.show({ message: '无效的任务ID', type: 'error' });
 			uni.navigateBack();
 			return;
 		}
@@ -112,7 +107,6 @@
 
 		} catch (error) {
 			console.error('Failed to load task details:', error);
-			uni.showToast({ title: '加载失败', icon: 'none' });
 		} finally {
 			isLoading.value = false;
 		}
@@ -198,18 +192,16 @@
 		}
 	};
 
-	// [核心新增] 打开确认模态框
 	const openCompleteTaskModal = () => {
 		showCompleteTaskModal.value = true;
 	};
 
-	// [核心修改] 将原有的完成任务逻辑移到这里
 	const handleConfirmCompleteTask = async () => {
 		if (!task.value) return;
 		isSubmitting.value = true;
 		try {
 			await completeTask(task.value.id, { notes: '' });
-			uni.showToast({ title: '任务已完成', icon: 'success' });
+			toastStore.show({ message: '任务已完成', type: 'success' });
 			await dataStore.fetchProductionData();
 			uni.navigateBack();
 		} catch (error) {
@@ -240,10 +232,6 @@
 		if (!task.value) return 0;
 		return getTotalQuantity(task.value);
 	});
-
-	const navigateBack = () => {
-		uni.navigateBack();
-	};
 </script>
 
 <style scoped lang="scss">
@@ -348,7 +336,6 @@
 		font-weight: 500;
 	}
 
-	/* [核心新增] 与其他模态框统一的样式 */
 	.modal-prompt-text {
 		font-size: 16px;
 		color: var(--text-primary);

@@ -194,15 +194,78 @@ export class IngredientsService {
         });
     }
 
-    // 软删除原料品类
+    /**
+     * [V2.5 核心逻辑重写] 物理删除原料品类，增加使用校验
+     * @param tenantId 租户ID
+     * @param id 原料ID
+     */
     async remove(tenantId: string, id: string) {
-        // 确保该原料存在且属于该租户
-        await this.findOne(tenantId, id);
-        return this.prisma.ingredient.update({
-            where: { id },
-            data: {
-                deletedAt: new Date(),
+        // 1. 确保该原料存在且属于该租户
+        const ingredientToDelete = await this.findOne(tenantId, id);
+
+        // 2. 检查是否有任何配方正在使用该原料
+        const usageInDoughs = await this.prisma.doughIngredient.count({
+            where: {
+                name: ingredientToDelete.name,
+                dough: {
+                    recipeVersion: {
+                        family: {
+                            tenantId,
+                            deletedAt: null,
+                        },
+                    },
+                },
             },
+        });
+
+        const usageInProducts = await this.prisma.productIngredient.count({
+            where: {
+                name: ingredientToDelete.name,
+                product: {
+                    recipeVersion: {
+                        family: {
+                            tenantId,
+                            deletedAt: null,
+                        },
+                    },
+                },
+            },
+        });
+
+        if (usageInDoughs > 0 || usageInProducts > 0) {
+            throw new BadRequestException('该原料正在被一个或多个配方使用，无法删除。');
+        }
+
+        // 3. [FIX] 使用事务按正确顺序删除所有关联记录
+        return this.prisma.$transaction(async (tx) => {
+            const skuIds = ingredientToDelete.skus.map((sku) => sku.id);
+
+            if (skuIds.length > 0) {
+                // 3.1 删除引用SKU的采购记录
+                await tx.procurementRecord.deleteMany({
+                    where: {
+                        skuId: { in: skuIds },
+                    },
+                });
+            }
+
+            // 3.2 解除原料对激活SKU的引用
+            await tx.ingredient.update({
+                where: { id },
+                data: { activeSkuId: null },
+            });
+
+            // 3.3 删除所有关联的SKU
+            await tx.ingredientSKU.deleteMany({
+                where: {
+                    ingredientId: id,
+                },
+            });
+
+            // 3.4 执行物理删除
+            return tx.ingredient.delete({
+                where: { id },
+            });
         });
     }
 
@@ -221,12 +284,12 @@ export class IngredientsService {
     }
 
     /**
-     * [新增] 删除一个SKU
+     * [V2.5 修改] 删除一个SKU，实现更灵活的删除逻辑
      * @param tenantId 租户ID
      * @param skuId SKU ID
      */
     async deleteSku(tenantId: string, skuId: string) {
-        // 1. 验证SKU是否存在且属于该租户
+        // 1. 验证SKU是否存在且属于该租户，并获取其关联信息
         const skuToDelete = await this.prisma.ingredientSKU.findFirst({
             where: {
                 id: skuId,
@@ -235,6 +298,7 @@ export class IngredientsService {
                 },
             },
             include: {
+                ingredient: true,
                 _count: {
                     select: { procurementRecords: true },
                 },
@@ -245,19 +309,46 @@ export class IngredientsService {
             throw new NotFoundException('SKU不存在');
         }
 
-        // 2. 业务规则：如果SKU下有采购记录，则不允许删除
-        if (skuToDelete._count.procurementRecords > 0) {
-            throw new BadRequestException('该SKU下已存在采购记录，无法删除');
-        }
-
-        // 3. 业务规则：如果SKU是激活状态，则不允许删除
+        // 2. 业务规则：如果SKU是激活状态，则不允许删除
         if (skuToDelete.status === SkuStatus.ACTIVE) {
-            throw new BadRequestException('不能删除当前激活的SKU');
+            throw new BadRequestException('不能删除当前激活的SKU，请先激活其他SKU。');
         }
 
-        // 4. 执行删除
-        return this.prisma.ingredientSKU.delete({
-            where: { id: skuId },
+        // 3. 检查其所属原料是否被配方使用
+        const ingredientName = skuToDelete.ingredient.name;
+        const usageInDoughs = await this.prisma.doughIngredient.count({
+            where: {
+                name: ingredientName,
+                dough: { recipeVersion: { family: { tenantId, deletedAt: null } } },
+            },
+        });
+        const usageInProducts = await this.prisma.productIngredient.count({
+            where: {
+                name: ingredientName,
+                product: { recipeVersion: { family: { tenantId, deletedAt: null } } },
+            },
+        });
+
+        const isIngredientInUse = usageInDoughs > 0 || usageInProducts > 0;
+        const hasProcurementRecords = skuToDelete._count.procurementRecords > 0;
+
+        // 4. 应用新的删除规则
+        if (isIngredientInUse && hasProcurementRecords) {
+            throw new BadRequestException('该SKU所属原料已被配方使用，且该SKU存在采购记录，无法删除。');
+        }
+
+        // 5. 执行删除
+        return this.prisma.$transaction(async (tx) => {
+            // 5.1 如果有采购记录，则一并删除
+            if (hasProcurementRecords) {
+                await tx.procurementRecord.deleteMany({
+                    where: { skuId: skuId },
+                });
+            }
+            // 5.2 删除SKU
+            return tx.ingredientSKU.delete({
+                where: { id: skuId },
+            });
         });
     }
 
@@ -409,7 +500,7 @@ export class IngredientsService {
             });
 
             // 2.2 查找删除后最新的采购记录，以更新单价
-            const latestProcurement = await tx.procurementRecord.findFirst({
+            const latestProcurement = await this.prisma.procurementRecord.findFirst({
                 where: {
                     sku: {
                         ingredientId: sku.ingredientId,

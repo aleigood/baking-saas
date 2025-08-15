@@ -3,33 +3,24 @@
 .page-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px 20px; padding-top: calc(var(--status-bar-height) + 20px); background: transparent; position: sticky; top: 0; z-index: 10; backdrop-filter: saturate(180%) blur(20px); background-color: rgba(253, 248, 242, 0.85); }
 .store-selector { font-size: 18px; font-weight: 600; }
 .user-avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; background-color: var(--primary-color); }
-/* [核心新增] 当 IconButton 组件被用作头像时，移除其内边距以保持原始尺寸 */
 .icon-button.user-avatar {
 	padding: 0;
 }
 .page-content {
 	padding: 15px;
-	/* [核心修改] 规范页面与屏幕底部边缘的距离 (第三种情况：无 FAB 和 TabBar) */
 	padding-bottom: 20px;
 }
 
-/* [核心修改] 规范页面与屏幕底部边缘的距离 (第一种情况：带 TabBar 和 FAB 按钮) */
 .page-content-with-tabbar-fab {
 	padding-bottom: 150px;
 }
 
-/* [核心修改] 规范页面与屏幕底部边缘的距离 (第二种情况：仅带 FAB 按钮，无 TabBar) */
 .page-content-with-fab {
 	padding-bottom: 90px;
 }
 
 
 /* Water ripple effect */
-.ripple-container {
-	position: relative;
-	overflow: hidden;
-}
-
 .ripple {
 	position: absolute;
 	border-radius: 50%;
@@ -115,6 +106,7 @@
     box-shadow: 0 6px 20px rgba(140,90,59,0.3); 
     z-index: 20; 
     transform: translateZ(0);
+    overflow: hidden;
 }
 .fab.fab-no-tab-bar {
 	bottom: 30px;
@@ -177,7 +169,6 @@
 	border-radius: 8px;
 }
 
-/* [核心新增] 为卡片内链接式按钮添加新样式，以替代原有的 .btn-add-sm */
 .btn-text-link {
 	width: 100%;
 	padding: 8px;
@@ -201,8 +192,28 @@
 
 /* Detail Header */
 .detail-header { display: flex; align-items: center; width: 100%; }
-.back-btn { font-size: 22px; cursor: pointer; margin-right: 15px; color: var(--text-secondary); padding: 5px; }
+.back-btn { 
+    font-size: 20px; 
+    cursor: pointer; 
+    margin-right: 10px; 
+    color: var(--text-secondary); 
+    position: relative;
+    overflow: hidden;
+    width: 40px; 
+    height: 40px;
+    border-radius: 50%; 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transform: translateZ(0);
+    padding: 0;
+}
 .detail-title { font-size: 20px; font-weight: 600; flex: 1; }
+
+.back-btn :deep(.ripple) {
+	background-color: rgba(0, 0, 0, 0.08);
+}
+
 
 /* Common Components */
 .tag-group { margin-bottom: 20px; }
@@ -217,7 +228,6 @@
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; backdrop-filter: blur(4px); background: rgba(0,0,0,0.2); z-index: 99; display: flex; justify-content: center; align-items: center; }
 .modal-content { background: white; border-radius: 20px; width: 80%; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
 
-/* [新增] 选项对话框列表样式 */
 .options-list {
 	.option-item {
 		padding: 15px 0;
@@ -251,6 +261,22 @@
 			display: none;
 		}
 	}
+}
+
+/* [新增] 确认对话框的统一样式 */
+.modal-prompt-text {
+	font-size: 16px;
+	color: var(--text-primary);
+	text-align: center;
+	margin-bottom: 10px;
+}
+
+.modal-warning-text {
+	font-size: 13px;
+	color: var(--text-secondary);
+	text-align: center;
+	margin-bottom: 20px;
+	line-height: 1.5;
 }
 
 

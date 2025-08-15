@@ -15,16 +15,15 @@ import type {
 	IngredientStatDto,
 } from '@/types/api';
 import { useUserStore } from './user';
+import { useToastStore } from './toast'; // [新增] 引入 toast store
 import { getTenants as getTenantsApi } from '@/api/tenants';
 import { switchTenant as switchTenantApi } from '@/api/auth';
-// [MODIFIED] 引入 getHistoricalTasks
 import { getTasks, getHistoricalTasks } from '@/api/tasks';
 import { getRecipes } from '@/api/recipes';
 import { getIngredients } from '@/api/ingredients';
 import { getMembers } from '@/api/members';
 import { getRecipeStats, getIngredientStats } from '@/api/stats';
 
-// 辅助函数：获取本月起止日期
 function getMonthDateRange() {
 	const now = new Date();
 	const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
@@ -33,27 +32,21 @@ function getMonthDateRange() {
 }
 
 export const useDataStore = defineStore('data', () => {
-	// State
 	const tenants = ref<Tenant[]>([]);
 	const currentTenantId = ref<string>(uni.getStorageSync('tenant_id') || '');
-
-	// 业务数据
 	const production = ref<ProductionTaskDto[]>([]);
-	// [MODIFIED] historicalTasks 现在存储由后端分组好的数据
 	const historicalTasks = ref<Record<string, ProductionTaskDto[]>>({});
-	// [ADDED] 新增用于管理历史任务分页的状态
 	const historicalTasksMeta = ref({
 		page: 1,
-		limit: 10, // 与后端保持一致
+		limit: 10,
 		hasMore: true,
 	});
-	const recipes = ref<RecipeFamily[]>([]); // 更新为 RecipeFamily 数组
+	const recipes = ref<RecipeFamily[]>([]);
 	const ingredients = ref<Ingredient[]>([]);
 	const members = ref<Member[]>([]);
 	const recipeStats = ref<RecipeStatDto[]>([]);
 	const ingredientStats = ref<IngredientStatDto[]>([]);
 
-	// [新增] 用于跟踪各模块数据是否已加载的状态
 	const dataLoaded = ref({
 		production: false,
 		recipes: false,
@@ -62,21 +55,19 @@ export const useDataStore = defineStore('data', () => {
 		historicalTasks: false,
 	});
 
-	// Getters
 	const currentTenant = computed(() => tenants.value.find((t) => t.id === currentTenantId.value));
 
-	// [新增] 将 RecipeFamily 转换为旧的 ProductListItem 结构以兼容UI
 	const productList = computed(() : ProductListItem[] => {
 		const list : ProductListItem[] = [];
 		recipes.value.forEach((family) => {
 			family.versions
-				.filter((v) => v.isActive) // 只选择激活的版本
+				.filter((v) => v.isActive)
 				.forEach((version) => {
 					version.products.forEach((product) => {
 						list.push({
 							id: product.id,
 							name: product.name,
-							type: family.name, // 类型是配方家族名
+							type: family.name,
 							familyId: family.id,
 						});
 					});
@@ -85,7 +76,6 @@ export const useDataStore = defineStore('data', () => {
 		return list;
 	});
 
-	// Actions
 	async function fetchTenants() {
 		try {
 			const userStore = useUserStore();
@@ -110,8 +100,6 @@ export const useDataStore = defineStore('data', () => {
 		}
 	}
 
-	// [重构] 将原来的 `loadDataForCurrentTenant` 拆分为独立的、按需调用的函数
-
 	async function fetchProductionData() {
 		if (!currentTenantId.value) return;
 		try {
@@ -125,9 +113,7 @@ export const useDataStore = defineStore('data', () => {
 		}
 	}
 
-	// [REFACTORED] 重构 fetchHistoricalTasks 以支持分页加载和增量更新
 	async function fetchHistoricalTasks(loadMore = false) {
-		// 如果正在加载中，或者没有更多数据了，则直接返回
 		if (!currentTenantId.value || (!loadMore && dataLoaded.value.historicalTasks) || !historicalTasksMeta.value.hasMore) {
 			return;
 		}
@@ -137,14 +123,12 @@ export const useDataStore = defineStore('data', () => {
 			if (loadMore) {
 				pageToFetch = historicalTasksMeta.value.page + 1;
 			} else {
-				// 首次加载，重置状态
 				resetHistoricalTasks();
 			}
 
 			const res = await getHistoricalTasks(pageToFetch, historicalTasksMeta.value.limit);
 
 			if (loadMore) {
-				// 加载更多：合并新数据到旧数据中
 				for (const date in res.data) {
 					if (historicalTasks.value[date]) {
 						historicalTasks.value[date].push(...res.data[date]);
@@ -153,7 +137,6 @@ export const useDataStore = defineStore('data', () => {
 					}
 				}
 			} else {
-				// 首次加载：直接替换数据
 				historicalTasks.value = res.data;
 			}
 
@@ -163,7 +146,6 @@ export const useDataStore = defineStore('data', () => {
 
 		} catch (error) {
 			console.error('Failed to fetch historical tasks', error);
-			// 出错时重置hasMore，防止无法再次加载
 			historicalTasksMeta.value.hasMore = false;
 		}
 	}
@@ -208,35 +190,29 @@ export const useDataStore = defineStore('data', () => {
 		}
 	}
 
-	/**
-	 * [重构] 切换店铺时，调用后端接口切换token，然后重置状态。
-	 * 数据加载将由各个页面在 onShow 时触发。
-	 */
 	async function selectTenant(tenantId : string) {
 		const userStore = useUserStore();
+		const toastStore = useToastStore(); // [新增] 获取 toast store 实例
 		try {
 			const res = await switchTenantApi(tenantId);
-			userStore.setToken(res.accessToken); // 更新token
+			userStore.setToken(res.accessToken);
 			currentTenantId.value = tenantId;
 			uni.setStorageSync('tenant_id', tenantId);
-			// 重置业务数据和加载状态
 			resetData();
-			// 重新获取用户信息，因为角色可能在不同店铺中不同
 			await userStore.fetchUserInfo();
 		} catch (error) {
 			console.error('Failed to switch tenant', error);
-			uni.showToast({ title: '切换店铺失败', icon: 'none' });
+			// [修改] 使用新的 Toast 系统
+			toastStore.show({ message: '切换店铺失败', type: 'error' });
 		}
 	}
 
-	// [ADDED] 用于重置历史任务分页状态的辅助函数
 	function resetHistoricalTasks() {
 		historicalTasks.value = {};
 		historicalTasksMeta.value = { page: 0, limit: 10, hasMore: true };
 		dataLoaded.value.historicalTasks = false;
 	}
 
-	// [新增] 用于重置业务数据和加载状态的辅助函数
 	function resetData() {
 		production.value = [];
 		recipes.value = [];
@@ -251,7 +227,7 @@ export const useDataStore = defineStore('data', () => {
 			members: false,
 			historicalTasks: false,
 		};
-		resetHistoricalTasks(); // [MODIFIED] 调用重置历史任务函数
+		resetHistoricalTasks();
 	}
 
 	function reset() {
@@ -266,18 +242,17 @@ export const useDataStore = defineStore('data', () => {
 		currentTenant,
 		production,
 		historicalTasks,
-		historicalTasksMeta, // [ADDED] 暴露分页元数据
+		historicalTasksMeta,
 		recipes,
-		productList, // 暴露转换后的产品列表
+		productList,
 		ingredients,
 		members,
 		recipeStats,
 		ingredientStats,
-		dataLoaded, // 暴露加载状态
+		dataLoaded,
 		fetchTenants,
 		selectTenant,
 		reset,
-		// 暴露独立的加载函数
 		fetchProductionData,
 		fetchHistoricalTasks,
 		fetchRecipesData,

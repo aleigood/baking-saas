@@ -1,24 +1,17 @@
 <template>
 	<view>
-		<view class="page-header">
-			<view class="store-selector" @click="uiStore.openModal('store')">{{ dataStore.currentTenant?.name }} &#9662;
-			</view>
-			<IconButton circle class="user-avatar" @click="uiStore.openModal('userOptions')">
-				{{ userStore.userInfo?.name?.[0] || '管' }}
-			</IconButton>
-		</view>
+		<MainHeader />
 		<view class="page-content page-content-with-tabbar-fab">
 			<FilterTabs>
 				<FilterTab :active="ingredientFilter === 'all'" @click="ingredientFilter = 'all'">全部</FilterTab>
 				<FilterTab :active="ingredientFilter === 'low'" @click="ingredientFilter = 'low'">库存紧张</FilterTab>
 			</FilterTabs>
 
-			<!-- [修改] 为触摸事件的容器添加class和样式 -->
 			<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
-				<!-- 全部原料列表 -->
 				<template v-if="ingredientFilter === 'all'">
 					<template v-if="allIngredients.length > 0">
-						<ListItem v-for="ing in allIngredients" :key="ing.id" @click="navigateToDetail(ing.id)">
+						<ListItem v-for="ing in allIngredients" :key="ing.id" @click="navigateToDetail(ing.id)"
+							@longpress="openIngredientActions(ing)" :vibrate-on-long-press="canEdit">
 							<view class="main-info">
 								<view class="name">{{ ing.name }}</view>
 								<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
@@ -38,10 +31,10 @@
 					</view>
 				</template>
 
-				<!-- 库存紧张列表 -->
 				<template v-if="ingredientFilter === 'low'">
 					<template v-if="lowStockIngredients.length > 0">
-						<ListItem v-for="ing in lowStockIngredients" :key="ing.id" @click="navigateToDetail(ing.id)">
+						<ListItem v-for="ing in lowStockIngredients" :key="ing.id" @click="navigateToDetail(ing.id)"
+							@longpress="openIngredientActions(ing)" :vibrate-on-long-press="canEdit">
 							<view class="main-info">
 								<view class="name">{{ ing.name }}</view>
 								<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
@@ -61,27 +54,65 @@
 			</view>
 		</view>
 		<AppFab @click="navigateToEditPage" />
+
+		<AppModal :visible="uiStore.showIngredientActionsModal"
+			@update:visible="uiStore.closeModal(MODAL_KEYS.INGREDIENT_ACTIONS)" title="原料操作" :no-header-line="true">
+			<view class="options-list">
+				<!-- [修改] 移除 danger-text class -->
+				<ListItem class="option-item" @click="handleDeleteIngredient">
+					<view class="main-info">
+						<view class="name">删除原料</view>
+					</view>
+				</ListItem>
+			</view>
+		</AppModal>
+
+		<AppModal :visible="uiStore.showDeleteIngredientConfirmModal"
+			@update:visible="uiStore.closeModal(MODAL_KEYS.DELETE_INGREDIENT_CONFIRM)" title="确认删除">
+			<view class="modal-prompt-text">
+				确定要删除 “{{ selectedIngredient?.name }}” 吗？
+			</view>
+			<!-- [修改] 更新警告信息文案 -->
+			<view class="modal-warning-text">
+				已被配方使用的原料将无法被删除。
+			</view>
+			<view class="modal-actions">
+				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.DELETE_INGREDIENT_CONFIRM)">取消
+				</AppButton>
+				<AppButton type="danger" @click="confirmDeleteIngredient" :loading="isSubmitting">
+					{{ isSubmitting ? '' : '确认删除' }}
+				</AppButton>
+			</view>
+		</AppModal>
+
 	</view>
 </template>
 <script setup lang="ts">
-	import IconButton from '@/components/IconButton.vue';
 	import { ref, computed } from 'vue';
 	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import { useUiStore } from '@/store/ui';
+	import { useToastStore } from '@/store/toast';
+	import { deleteIngredient } from '@/api/ingredients';
+	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import type { Ingredient } from '@/types/api';
+	import MainHeader from '@/components/MainHeader.vue';
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import FilterTab from '@/components/FilterTab.vue';
+	import AppModal from '@/components/AppModal.vue';
+	import AppButton from '@/components/AppButton.vue';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
+	const toastStore = useToastStore();
 	const ingredientFilter = ref('all');
+	const isSubmitting = ref(false);
+	const selectedIngredient = ref<Ingredient | null>(null);
 
-	// [新增] 用于记录滑动起始位置的变量
 	const touchStartX = ref(0);
 	const touchStartY = ref(0);
 
@@ -91,13 +122,11 @@
 		}
 	});
 
-	// [新增] 记录触摸开始的坐标
 	const handleTouchStart = (e : TouchEvent) => {
 		touchStartX.value = e.touches[0].clientX;
 		touchStartY.value = e.touches[0].clientY;
 	};
 
-	// [新增] 触摸结束时判断滑动方向并切换标签页
 	const handleTouchEnd = (e : TouchEvent) => {
 		const touchEndX = e.changedTouches[0].clientX;
 		const touchEndY = e.changedTouches[0].clientY;
@@ -106,10 +135,8 @@
 
 		if (Math.abs(deltaX) > 50 && Math.abs(deltaY) < 50) {
 			if (deltaX < 0) {
-				// 向左滑动
 				ingredientFilter.value = 'low';
 			} else {
-				// 向右滑动
 				ingredientFilter.value = 'all';
 			}
 		}
@@ -125,6 +152,14 @@
 		return [...dataStore.ingredients]
 			.filter((ing) => ing.daysOfSupply < 7)
 			.sort((a, b) => a.daysOfSupply - b.daysOfSupply);
+	});
+
+	const currentUserRoleInTenant = computed(
+		() => userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role
+	);
+
+	const canEdit = computed(() => {
+		return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 	});
 
 	const getDaysOfSupplyText = (days : number) => {
@@ -161,17 +196,39 @@
 			url: `/pages/ingredients/detail?ingredientId=${ingredientId}`,
 		});
 	};
+
+	const openIngredientActions = (ingredient : Ingredient) => {
+		if (!canEdit.value) return;
+		selectedIngredient.value = ingredient;
+		uiStore.openModal(MODAL_KEYS.INGREDIENT_ACTIONS);
+	};
+
+	const handleDeleteIngredient = () => {
+		uiStore.closeModal(MODAL_KEYS.INGREDIENT_ACTIONS);
+		uiStore.openModal(MODAL_KEYS.DELETE_INGREDIENT_CONFIRM);
+	};
+
+	const confirmDeleteIngredient = async () => {
+		if (!selectedIngredient.value) return;
+		isSubmitting.value = true;
+		try {
+			await deleteIngredient(selectedIngredient.value.id);
+			toastStore.show({ message: '删除成功', type: 'success' });
+			await dataStore.fetchIngredientsData();
+		} finally {
+			isSubmitting.value = false;
+			uiStore.closeModal(MODAL_KEYS.DELETE_INGREDIENT_CONFIRM);
+			selectedIngredient.value = null;
+		}
+	};
 </script>
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* [新增] 列表滑动容器样式 */
 	.list-wrapper {
 		min-height: 60vh;
-		/* 确保即使列表为空，也有足够的滑动区域 */
 	}
 
-	/* [新增] 通过wrapper类来定位ListItem，修复边距问题 */
 	.list-wrapper :deep(.list-item) {
 		margin-left: -15px;
 		margin-right: -15px;

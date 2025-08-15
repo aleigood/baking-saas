@@ -1,11 +1,14 @@
 /**
  * 文件路径: /src/utils/request.ts
- * 文件描述: 封装网络请求函数，并从环境变量中读取 API 地址。
+ * 文件描述: [修改] 增强了错误处理，特别是针对401状态码进行自动登出。
  */
 import { useUserStore } from '@/store/user';
+import { useToastStore } from '@/store/toast';
 
-// 从 Vite 的环境变量中读取 API 基础地址
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+// [新增] 增加一个标志位，防止因多个并发请求失败而重复触发登出
+let isLoggingOut = false;
 
 interface RequestOptions {
 	url : string;
@@ -17,21 +20,19 @@ interface RequestOptions {
 export const request = <T = any>(options : RequestOptions) : Promise<T> => {
 	return new Promise((resolve, reject) => {
 		const userStore = useUserStore();
+		const toastStore = useToastStore();
 
 		let url = BASE_URL + options.url;
 		let data = options.data || {};
 		const method = options.method || 'GET';
 
-		// [核心修改] 兼容小程序环境，手动拼接 GET 请求的查询字符串
 		if (method === 'GET' && Object.keys(data).length > 0) {
 			const params = Object.keys(data)
 				.map(key => {
 					const value = data[key];
 					if (Array.isArray(value)) {
-						// 对于数组参数，按后端所需格式拼接（例如: key=A&key=B）
 						return value.map(item => `${key}=${encodeURIComponent(item)}`).join('&');
 					} else if (value !== undefined && value !== null) {
-						// 对于非数组参数，正常拼接
 						return `${key}=${encodeURIComponent(value)}`;
 					}
 					return '';
@@ -41,35 +42,49 @@ export const request = <T = any>(options : RequestOptions) : Promise<T> => {
 
 			if (params) {
 				url += (url.includes('?') ? '&' : '?') + params;
-				data = {}; // 清空 data 对象，因为参数已经附加到 URL 上
+				data = {};
 			}
 		}
 
-
 		uni.request({
-			url: url, // [MODIFIED] 使用处理过的 URL
+			url: url,
 			method: method,
-			data: data, // [MODIFIED] GET 请求时此对象为空
+			data: data,
 			header: {
 				...options.header,
 				Authorization: userStore.token ? `Bearer ${userStore.token}` : '',
 			},
 			success: (res : UniApp.RequestSuccessCallbackResult) => {
-				// 兼容所有 2xx 状态码
+				// [核心修改] 增强错误处理逻辑
+				if (res.statusCode === 401) {
+					if (!isLoggingOut) {
+						isLoggingOut = true;
+						toastStore.show({
+							message: '登录已过期，请重新登录',
+							type: 'error',
+						});
+						// 延迟执行登出，让用户能看到提示
+						setTimeout(() => {
+							userStore.logout();
+							isLoggingOut = false; // 重置标志位
+						}, 1500);
+					}
+					return reject(res);
+				}
+
 				if (res.statusCode >= 200 && res.statusCode < 300) {
 					resolve(res.data as T);
 				} else {
-					// 统一处理错误提示
 					const errorMessage = (res.data as any)?.message || '请求失败，请稍后重试';
-					uni.showToast({
-						title: Array.isArray(errorMessage) ? errorMessage.join(',') : errorMessage,
-						icon: 'none',
+					toastStore.show({
+						message: Array.isArray(errorMessage) ? errorMessage.join(',') : errorMessage,
+						type: 'error'
 					});
 					reject(res);
 				}
 			},
 			fail: (err) => {
-				uni.showToast({ title: '网络错误，请检查您的连接', icon: 'none' });
+				toastStore.show({ message: '网络错误，请检查您的连接', type: 'error' });
 				reject(err);
 			},
 		});

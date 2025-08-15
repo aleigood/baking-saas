@@ -1,11 +1,7 @@
 <template>
 	<view class="page-container">
-		<view class="page-header">
-			<view class="detail-header">
-				<view class="back-btn" @click="navigateBack">&#10094;</view>
-				<h2 class="detail-title">新建生产任务</h2>
-			</view>
-		</view>
+		<!-- [重构] 使用 DetailHeader 组件 -->
+		<DetailHeader title="新建生产任务" />
 		<view class="page-content">
 			<view class="loading-spinner" v-if="isLoading">
 				<text>加载中...</text>
@@ -19,18 +15,14 @@
 					<view v-show="!collapsedGroups.has(groupName)" class="product-list">
 						<view v-for="product in group" :key="product.id" class="product-item">
 							<view class="product-name">{{ product.name }}</view>
-							<!-- [核心修改] 将步进器代码直接内置在模板中 -->
 							<view class="quantity-control">
-								<!-- 减号按钮 -->
-								<view class="btn-stepper" @click="decreaseQuantity(product.id)">
+								<view class="btn-stepper" @click="decreaseQuantity(product.id)" v-ripple>
 									<image class="stepper-icon"
 										src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a98467'%3E%3Cpath d='M19 13H5v-2h14v2z'/%3E%3C/svg%3E" />
 								</view>
-								<!-- 输入框 -->
 								<input class="input-stepper" type="number"
 									v-model.number="taskQuantities[product.id]" />
-								<!-- 加号按钮 -->
-								<view class="btn-stepper" @click="increaseQuantity(product.id)">
+								<view class="btn-stepper" @click="increaseQuantity(product.id)" v-ripple>
 									<image class="stepper-icon"
 										src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a98467'%3E%3Cpath d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/%3E%3C/svg%3E" />
 								</view>
@@ -53,8 +45,7 @@
 	import { useDataStore } from '@/store/data';
 	import { createTask } from '@/api/tasks';
 	import AppButton from '@/components/AppButton.vue';
-	// [核心修改] 移除对 StepperButton 的引用
-	// import StepperButton from '@/components/StepperButton.vue';
+	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader 组件
 	import type { ProductionTaskDto } from '@/types/api';
 
 	const dataStore = useDataStore();
@@ -97,7 +88,6 @@
 		return Object.values(taskQuantities).some(qty => qty > 0);
 	});
 
-	// [核心修改] 将加减数量的逻辑直接内置，不再依赖外部组件事件
 	const increaseQuantity = (productId : string) => {
 		taskQuantities[productId]++;
 	};
@@ -138,10 +128,6 @@
 		} finally {
 			isCreating.value = false;
 		}
-	};
-
-	const navigateBack = () => {
-		uni.navigateBack();
 	};
 </script>
 
@@ -201,7 +187,6 @@
 		gap: 5px;
 	}
 
-	// [新增] 内置的步进器按钮样式
 	.btn-stepper {
 		width: 30px;
 		height: 30px;
@@ -227,6 +212,5 @@
 		background-color: var(--bg-color);
 		font-size: 16px;
 		border-radius: 8px;
-		/* [新增] 为输入框添加圆角 */
 	}
 </style>

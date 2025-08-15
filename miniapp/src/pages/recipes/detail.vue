@@ -1,19 +1,14 @@
 <template>
 	<view class="page-container">
-		<view class="page-header">
-			<view class="detail-header">
-				<view class="back-btn" @click="navigateBack">&#10094;</view>
-				<h2 class="detail-title">{{ recipeFamily?.name || '加载中...' }}</h2>
-			</view>
-		</view>
+		<DetailHeader :title="recipeFamily?.name || '加载中...'" />
 		<view class="page-content" v-if="!isLoading && recipeFamily">
 			<view class="detail-page">
-				<!-- 版本列表组件 -->
+				<!-- [修改] 传入配方状态 -->
 				<RecipeVersionList :versions="recipeVersions" :selected-version-id="displayedVersionId"
-					:can-edit="canEditRecipe" @select-version="handleVersionClick" @create-version="handleCreateVersion"
+					:can-edit="canEditRecipe" :is-discontinued="recipeFamily.deletedAt !== null"
+					@select-version="handleVersionClick" @create-version="handleCreateVersion"
 					@longpress-version="handleVersionLongPressAction" />
 
-				<!-- 根据配方类型动态渲染详情组件 -->
 				<MainRecipeDetail v-if="recipeFamily.type === 'MAIN'" :version="displayedVersion" />
 				<SimpleRecipeDetail v-else :version="displayedVersion" />
 			</view>
@@ -22,7 +17,6 @@
 			<text>加载中...</text>
 		</view>
 
-		<!-- [新增] 版本操作选项对话框 -->
 		<AppModal v-model:visible="showVersionOptionsModal" title="配方版本" :no-header-line="true">
 			<view class="options-list">
 				<ListItem class="option-item" @click="handleActivateVersionOption">
@@ -38,7 +32,6 @@
 			</view>
 		</AppModal>
 
-		<!-- [修改] “设为使用中”的确认对话框 -->
 		<AppModal v-model:visible="showActivateVersionConfirmModal" title="设为使用中">
 			<view class="modal-prompt-text">
 				要将这个版本设为当前使用的配方吗？
@@ -54,7 +47,6 @@
 			</view>
 		</AppModal>
 
-		<!-- [新增] 删除配方版本的确认对话框 -->
 		<AppModal v-model:visible="showDeleteVersionConfirmModal" title="确认删除">
 			<view class="modal-prompt-text">
 				确定要删除这个配方版本吗？
@@ -69,6 +61,8 @@
 				</AppButton>
 			</view>
 		</AppModal>
+
+		<Toast />
 	</view>
 </template>
 
@@ -77,27 +71,27 @@
 	import { onLoad, onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
+	import { useToastStore } from '@/store/toast';
 	import type { RecipeFamily, RecipeVersion } from '@/types/api';
 	import { getRecipeFamily, activateRecipeVersion, deleteRecipeVersion } from '@/api/recipes';
 
-	// 引入子组件
 	import RecipeVersionList from '@/components/RecipeVersionList.vue';
 	import MainRecipeDetail from '@/components/MainRecipeDetail.vue';
 	import SimpleRecipeDetail from '@/components/SimpleRecipeDetail.vue';
-
-	// 引入通用组件
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
 	import ListItem from '@/components/ListItem.vue';
+	import Toast from '@/components/Toast.vue';
+	import DetailHeader from '@/components/DetailHeader.vue';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
+	const toastStore = useToastStore();
 	const isLoading = ref(true);
 	const isSubmitting = ref(false);
 	const recipeFamily = ref<RecipeFamily | null>(null);
 	const recipeVersions = ref<RecipeVersion[]>([]);
 
-	// 状态管理
 	const familyId = ref<string | null>(null);
 	const displayedVersionId = ref<string | null>(null);
 	const showActivateVersionConfirmModal = ref(false);
@@ -138,7 +132,7 @@
 			}
 		} catch (error) {
 			console.error('Failed to fetch recipe details:', error);
-			uni.showToast({ title: '获取配方详情失败', icon: 'none' });
+			toastStore.show({ message: '获取配方详情失败', type: 'error' });
 		} finally {
 			isLoading.value = false;
 		}
@@ -155,10 +149,6 @@
 	const canEditRecipe = computed(() => {
 		return currentUserRoleInTenant.value === 'OWNER' || currentUserRoleInTenant.value === 'ADMIN';
 	});
-
-	const navigateBack = () => {
-		uni.navigateBack();
-	};
 
 	const navigateToEditPage = (familyId : string | null) => {
 		if (!familyId) return;
@@ -205,7 +195,7 @@
 		isSubmitting.value = true;
 		try {
 			await activateRecipeVersion(recipeFamily.value.id, versionToActivate.id);
-			uni.showToast({ title: '设置成功', icon: 'success' });
+			toastStore.show({ message: '设置成功', type: 'success' });
 			await loadRecipeData(recipeFamily.value.id);
 			dataStore.fetchRecipesData();
 		} catch (error) {
@@ -221,14 +211,13 @@
 		isSubmitting.value = true;
 		try {
 			await deleteRecipeVersion(familyId.value, selectedVersionForAction.value.id);
-			uni.showToast({ title: '删除成功', icon: 'success' });
+			toastStore.show({ message: '删除成功', type: 'success' });
 			showDeleteVersionConfirmModal.value = false;
 			selectedVersionForAction.value = null;
 			await loadRecipeData(familyId.value);
 			await dataStore.fetchRecipesData();
 		} catch (error) {
 			showDeleteVersionConfirmModal.value = false;
-			// 错误提示已由 src/utils/request.ts 统一处理，此处无需额外操作
 		} finally {
 			isSubmitting.value = false;
 		}
@@ -238,12 +227,8 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	/* 页面级容器的特定样式 */
-	.detail-page {
-		/* 可以添加一些页面特有的布局样式 */
-	}
+	.detail-page {}
 
-	/* 模态框内部的特定样式 */
 	.modal-prompt-text {
 		font-size: 16px;
 		color: var(--text-primary);

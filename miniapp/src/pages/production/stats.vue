@@ -1,25 +1,18 @@
 <template>
 	<view class="page-container">
-		<view class="page-header">
-			<view class="detail-header">
-				<view class="back-btn" @click="navigateBack">&#10094;</view>
-				<h2 class="detail-title">生产统计</h2>
-			</view>
-		</view>
+		<!-- [重构] 使用 DetailHeader 组件 -->
+		<DetailHeader title="生产统计" />
 		<view class="page-content">
-			<!-- 时间范围选择器 -->
 			<view class="date-range-selector">
 				<FilterTabs>
 					<FilterTab :active="activeDateRange === 'week'" @click="setDateRange('week')">本周</FilterTab>
 					<FilterTab :active="activeDateRange === 'month'" @click="setDateRange('month')">本月</FilterTab>
 					<FilterTab :active="activeDateRange === '7days'" @click="setDateRange('7days')">最近7天</FilterTab>
 					<FilterTab :active="activeDateRange === '30days'" @click="setDateRange('30days')">最近30天</FilterTab>
-					<!-- [核心新增] 自定义日期范围按钮 -->
 					<FilterTab :active="activeDateRange === 'custom'" @click="setDateRange('custom')">自定义</FilterTab>
 				</FilterTabs>
 			</view>
 
-			<!-- [核心新增] 自定义日期选择器 -->
 			<view v-if="activeDateRange === 'custom'" class="custom-date-picker card">
 				<picker mode="date" :value="customDate.start" @change="handleCustomDateChange($event, 'start')">
 					<view class="picker-item">{{ customDate.start }}</view>
@@ -34,7 +27,6 @@
 				<text>加载中...</text>
 			</view>
 			<template v-else-if="statsData.length > 0">
-				<!-- KPI 概览卡片 -->
 				<view class="summary-card">
 					<div>
 						<view class="value">{{ kpi.totalCount }}</view>
@@ -44,21 +36,17 @@
 						<view class="value">{{ kpi.varietyCount }}</view>
 						<view class="label">面包种类</view>
 					</div>
-					<!-- [核心新增] 新增“任务总数”KPI -->
 					<div>
 						<view class="value">{{ kpi.totalTasks }}</view>
 						<view class="label">任务总数</view>
 					</div>
 				</view>
 
-				<!-- 产量排行图表 -->
 				<view class="card">
 					<view class="card-title">产量排行 Top 10</view>
-					<!-- [核心修改] 图表只显示前10名 -->
 					<BarChart :chart-data="statsData.slice(0, 10)" unit="个" />
 				</view>
 
-				<!-- 详细数据列表 -->
 				<view class="card">
 					<view class="card-title">详细数据</view>
 					<view class="stats-table">
@@ -86,17 +74,19 @@
 
 <script setup lang="ts">
 	import { ref, computed, onMounted, reactive } from 'vue';
-	// [核心修正] 引入正确的 getProductionStats 接口
+	import { useToastStore } from '@/store/toast';
 	import { getProductionStats } from '@/api/stats';
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import FilterTab from '@/components/FilterTab.vue';
 	import BarChart from '@/components/BarChart.vue';
+	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader 组件
 	import type { RecipeStatDto } from '@/types/api';
 
 	const isLoading = ref(true);
 	const activeDateRange = ref<'week' | 'month' | '7days' | '30days' | 'custom'>('week');
 	const statsData = ref<{ name : string, value : number }[]>([]);
 	const totalTasks = ref(0);
+	const toastStore = useToastStore();
 
 	const customDate = reactive({
 		start: new Date().toISOString().split('T')[0],
@@ -138,9 +128,7 @@
 		isLoading.value = true;
 		try {
 			const { startDate, endDate } = getDateRange(activeDateRange.value);
-			// [核心修正] 调用正确的 getProductionStats 接口
 			const data = await getProductionStats(startDate, endDate);
-			// [核心修正] 增加对返回数据和 productStats 属性的安全检查
 			if (data && data.productStats) {
 				statsData.value = data.productStats.sort((a, b) => b.count - a.count).map(item => ({ name: item.name, value: item.count }));
 				totalTasks.value = data.totalTasks;
@@ -150,7 +138,6 @@
 			}
 		} catch (error) {
 			console.error('Failed to fetch stats data:', error);
-			uni.showToast({ title: '加载数据失败', icon: 'none' });
 		} finally {
 			isLoading.value = false;
 		}
@@ -170,7 +157,7 @@
 			customDate.end = e.detail.value;
 		}
 		if (new Date(customDate.start) > new Date(customDate.end)) {
-			uni.showToast({ title: '开始日期不能晚于结束日期', icon: 'none' });
+			toastStore.show({ message: '开始日期不能晚于结束日期', type: 'error' });
 			return;
 		}
 		fetchStatsData();
@@ -191,10 +178,6 @@
 	const getPercentage = (value : number) => {
 		if (kpi.value.totalCount === 0) return '0%';
 		return `${((value / kpi.value.totalCount) * 100).toFixed(1)}%`;
-	};
-
-	const navigateBack = () => {
-		uni.navigateBack();
 	};
 
 	onMounted(() => {

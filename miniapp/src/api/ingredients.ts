@@ -50,6 +50,17 @@ export function updateIngredient(ingredientId : string, data : { name ?: string;
 	});
 }
 
+/**
+ * [新增] 删除一个原料品类
+ * @param ingredientId 原料的ID
+ */
+export function deleteIngredient(ingredientId : string) : Promise<any> {
+	return request({
+		url: `/ingredients/${ingredientId}`,
+		method: 'DELETE',
+	});
+}
+
 
 /**
  * [新增] 为指定原料创建一个新的SKU
