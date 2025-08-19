@@ -1,37 +1,38 @@
 <template>
 	<view>
-		<MainHeader />
-		<view class="page-content page-content-with-tabbar-fab">
-			<view class="card">
-				<view class="card-title"><span>本周制作排行</span></view>
-				<view v-if="recipeStatsForChart.length > 0" class="ranking-list">
-					<view v-for="(item, index) in recipeStatsForChart.slice(0, 10)" :key="item.name"
-						class="ranking-item">
-						<text class="rank">{{ index + 1 }}</text>
-						<text class="name">{{ item.name }}</text>
-						<text class="count">{{ item.value }} 个</text>
+		<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
+			<view class="content-padding">
+				<view class="card">
+					<view class="card-title"><span>本周制作排行</span></view>
+					<view v-if="recipeStatsForChart.length > 0" class="ranking-list">
+						<view v-for="(item, index) in recipeStatsForChart.slice(0, 10)" :key="item.name"
+							class="ranking-item">
+							<text class="rank">{{ index + 1 }}</text>
+							<text class="name">{{ item.name }}</text>
+							<text class="count">{{ item.value }} 个</text>
+						</view>
+					</view>
+					<view v-else class="empty-state">
+						<text>暂无排行信息</text>
 					</view>
 				</view>
-				<view v-else class="empty-state">
-					<text>暂无排行信息</text>
-				</view>
-			</view>
 
-			<!-- [修改] 增加 class 以调整间距 -->
-			<FilterTabs class="recipe-filter-tabs">
-				<FilterTab :active="recipeFilter === 'MAIN'" @click="recipeFilter = 'MAIN'">面团</FilterTab>
-				<FilterTab :active="recipeFilter === 'OTHER'" @click="recipeFilter = 'OTHER'">其他</FilterTab>
-			</FilterTabs>
+				<FilterTabs class="recipe-filter-tabs">
+					<FilterTab :active="recipeFilter === 'MAIN'" @click="recipeFilter = 'MAIN'">面团</FilterTab>
+					<FilterTab :active="recipeFilter === 'OTHER'" @click="recipeFilter = 'OTHER'">其他</FilterTab>
+				</FilterTabs>
+			</view>
 
 			<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
 				<template v-if="recipeFilter === 'MAIN'">
 					<template v-if="mainRecipes.length > 0">
-						<ListItem v-for="family in mainRecipes" :key="family.id" @click="navigateToDetail(family.id)"
-							@longpress="openRecipeActions(family)" :vibrate-on-long-press="canEditRecipe">
+						<ListItem v-for="(family, index) in mainRecipes" :key="family.id"
+							@click="navigateToDetail(family.id)" @longpress="openRecipeActions(family)"
+							:vibrate-on-long-press="canEditRecipe" :bleed="true"
+							:divider="index < mainRecipes.length - 1">
 							<view class="main-info">
 								<view class="name">
 									{{ family.name }}
-									<!-- [新增] 已停用状态标签 -->
 									<text v-if="family.deletedAt" class="status-tag discontinued">已停用</text>
 								</view>
 								<view class="desc">
@@ -51,8 +52,10 @@
 
 				<template v-if="recipeFilter === 'OTHER'">
 					<template v-if="otherRecipes.length > 0">
-						<ListItem v-for="family in otherRecipes" :key="family.id" @click="navigateToDetail(family.id)"
-							@longpress="openRecipeActions(family)" :vibrate-on-long-press="canEditRecipe">
+						<ListItem v-for="(family, index) in otherRecipes" :key="family.id"
+							@click="navigateToDetail(family.id)" @longpress="openRecipeActions(family)"
+							:vibrate-on-long-press="canEditRecipe" :bleed="true"
+							:divider="index < otherRecipes.length - 1">
 							<view class="main-info">
 								<view class="name">
 									{{ family.name }}
@@ -79,20 +82,20 @@
 			@update:visible="uiStore.closeModal(MODAL_KEYS.RECIPE_ACTIONS)" title="配方操作" :no-header-line="true">
 			<view class="options-list">
 				<template v-if="selectedRecipe?.deletedAt === null">
-					<ListItem class="option-item" @click="handleDiscontinueRecipe">
+					<ListItem class="option-item" @click="handleDiscontinueRecipe" :bleed="true">
 						<view class="main-info">
 							<view class="name">停用配方</view>
 						</view>
 					</ListItem>
 				</template>
 				<template v-else>
-					<ListItem class="option-item" @click="handleRestoreRecipe">
+					<ListItem class="option-item" @click="handleRestoreRecipe" :bleed="true">
 						<view class="main-info">
 							<view class="name">恢复配方</view>
 						</view>
 					</ListItem>
 				</template>
-				<ListItem class="option-item" @click="handleDeleteRecipe">
+				<ListItem class="option-item" @click="handleDeleteRecipe" :bleed="true">
 					<view class="main-info">
 						<view class="name">删除配方</view>
 					</view>
@@ -163,7 +166,6 @@
 	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import { discontinueRecipe, restoreRecipe, deleteRecipe } from '@/api/recipes';
 	import type { RecipeFamily } from '@/types/api';
-	import MainHeader from '@/components/MainHeader.vue';
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
@@ -312,8 +314,10 @@
 		isSubmitting.value = true;
 		try {
 			await discontinueRecipe(selectedRecipe.value.id);
-			toastStore.show({ message: '已停用', type: 'success' });
+			toastStore.show({ message: '配方已停用', type: 'success' });
 			await dataStore.fetchRecipesData();
+		} catch (error) {
+			console.error('Failed to discontinue recipe:', error);
 		} finally {
 			isSubmitting.value = false;
 			uiStore.closeModal(MODAL_KEYS.DISCONTINUE_RECIPE_CONFIRM);
@@ -326,8 +330,10 @@
 		isSubmitting.value = true;
 		try {
 			await restoreRecipe(selectedRecipe.value.id);
-			toastStore.show({ message: '已恢复', type: 'success' });
+			toastStore.show({ message: '配方已恢复', type: 'success' });
 			await dataStore.fetchRecipesData();
+		} catch (error) {
+			console.error('Failed to restore recipe:', error);
 		} finally {
 			isSubmitting.value = false;
 			uiStore.closeModal(MODAL_KEYS.RESTORE_RECIPE_CONFIRM);
@@ -342,6 +348,8 @@
 			await deleteRecipe(selectedRecipe.value.id);
 			toastStore.show({ message: '删除成功', type: 'success' });
 			await dataStore.fetchRecipesData();
+		} catch (error) {
+			console.error('Failed to delete recipe:', error);
 		} finally {
 			isSubmitting.value = false;
 			uiStore.closeModal(MODAL_KEYS.DELETE_RECIPE_CONFIRM);
@@ -353,20 +361,17 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	.list-wrapper {
-		min-height: 60vh;
+	/* [兼容性修复] 引入 Mixin，将列表项内容的样式应用到当前页面作用域 */
+	@include list-item-content-style;
+	/* [兼容性修复] 引入新增的 Mixin */
+	@include list-item-option-style;
+
+	.card {
+		margin-bottom: 30px;
 	}
 
-	.list-wrapper :deep(.list-item) {
-		margin-left: -15px;
-		margin-right: -15px;
-		padding-left: 20px;
-		padding-right: 20px;
-	}
-
-	.list-wrapper :deep(.list-item:not(:last-child)::after) {
-		left: 20px;
-		right: 20px;
+	.content-padding {
+		padding: 0 15px;
 	}
 
 	.rating {
@@ -385,6 +390,16 @@
 		display: flex;
 		align-items: center;
 		font-size: 14px;
+
+		/* [样式修复] 将 .name 的样式规则嵌套在 .ranking-item 内部，以确保其作用域正确 */
+		.name {
+			flex-grow: 1;
+			margin: 0 8px 0 4px;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			color: var(--text-primary);
+		}
 	}
 
 	.rank {
@@ -392,15 +407,6 @@
 		font-weight: bold;
 		width: 12px;
 		color: var(--accent-color);
-	}
-
-	.name {
-		flex-grow: 1;
-		margin: 0 8px 0 4px;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		color: var(--text-primary);
 	}
 
 	.count {

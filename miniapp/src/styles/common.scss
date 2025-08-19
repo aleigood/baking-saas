@@ -1,22 +1,90 @@
+/* [兼容性修复] 创建一个 SCSS Mixin 来封装列表项内容的通用样式 */
+/* 这使得任何使用 ListItem 组件的父页面都可以通过 @include 引入这些样式，从而解决小程序中的 shadow-root 样式隔离问题 */
+@mixin list-item-content-style {
+	.main-info .name,
+	.side-info .value {
+		font-weight: 500;
+		color: var(--text-primary);
+	}
+
+	.main-info .desc,
+	.side-info .desc {
+		color: var(--text-secondary);
+		font-size: 13px;
+		margin-top: 2px;
+	}
+
+	.side-info {
+		text-align: right;
+	}
+}
+
+/* [兼容性修复] 新增一个 Mixin，专门用于选项列表中的列表项样式 */
+@mixin list-item-option-style {
+	.options-list .option-item {
+		.main-info .name {
+		    color: var(--text-primary);
+			font-size: 18px;
+			font-weight: 400;
+		}
+
+		/* 小程序大坑:deep() 选择器确保在小程序中也能修改 ListItem 的内部样式 */
+		/* 由于 AppModal 的 is-options-modal 模式移除了左右内边距，所以需要在这里为列表项内容补上 */
+		:deep(.list-item-content) {
+			padding-left: 25px;
+			padding-right: 25px;
+		}
+	}
+}
+
+
 /* Page layout */
 .page-container { }
-.page-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px 20px; padding-top: calc(var(--status-bar-height) + 20px); background: transparent; position: sticky; top: 0; z-index: 10; backdrop-filter: saturate(180%) blur(20px); background-color: rgba(253, 248, 242, 0.85); }
-.store-selector { font-size: 18px; font-weight: 600; }
+.page-header { 
+    background: transparent; 
+    position: sticky; 
+    top: 0; 
+    z-index: 10; 
+    backdrop-filter: saturate(180%) blur(20px); 
+    background-color: rgba(253, 248, 242, 0.85);
+    box-sizing: border-box;
+}
+.header-content {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    width: 100%;
+    box-sizing: border-box;
+}
+.store-selector { font-size: 20px; font-weight: 600; color: var(--text-primary); }
 .user-avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; background-color: var(--primary-color); }
 .icon-button.user-avatar {
 	padding: 0;
 }
 .page-content {
 	padding: 15px;
-	padding-bottom: 20px;
+	/* [布局兼容性修复] 为所有独立页面的底部增加安全区域内边距 */
+	padding-bottom: calc(32px + constant(safe-area-inset-bottom));
+	padding-bottom: calc(32px + env(safe-area-inset-bottom));
+}
+
+.page-content.no-horizontal-padding {
+	padding-left: 0;
+	padding-right: 0;
 }
 
 .page-content-with-tabbar-fab {
-	padding-bottom: 150px;
+	padding-bottom: calc(150px + constant(safe-area-inset-bottom));
+	padding-bottom: calc(150px + env(safe-area-inset-bottom));
 }
 
 .page-content-with-fab {
-	padding-bottom: 90px;
+	padding-bottom: calc(90px + constant(safe-area-inset-bottom));
+	padding-bottom: calc(90px + env(safe-area-inset-bottom));
 }
 
 
@@ -40,180 +108,28 @@
 
 /* Card and List */
 .card { background: var(--card-bg); padding: 20px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
-.card-title-wrapper { display: flex; justify-content: space-between; align-items: center; padding: 15px 5px; }
-.card-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+.card-title-wrapper { display: flex; justify-content: space-between; align-items: center; padding: 0 5px; margin-bottom: 20px; }
+.card-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; color: var(--text-primary); }
 .card-title-wrapper .card-title { margin-bottom: 0; }
 .header-action { color: var(--primary-color); font-size: 14px; font-weight: 500; }
 
-.list-item {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding: 15px 5px;
-	position: relative;
-	border-bottom: none;
-}
-
-.list-item:not(:last-child)::after {
-	content: '';
-	position: absolute;
-	bottom: 0;
-	height: 1px;
-	background-color: var(--border-color);
-	left: 5px;
-	right: 5px;
-}
-
-.list-item:last-child { border-bottom: none; }
-.card .list-item { padding-left: 0; padding-right: 0; }
-
-.card .list-item:not(:last-child)::after {
-	left: 0;
-	right: 0;
-}
-
-.main-info .name { font-weight: 500; }
-.main-info .desc { color: var(--text-secondary); font-size: 13px; margin-top: 2px; }
-.side-info { text-align: right; }
-.side-info .value { font-weight: 500; }
-.side-info .desc { color: var(--text-secondary); font-size: 13px; margin-top: 2px; }
-
-.page-content > .list-item:not(.task-card) {
-  margin-left: -15px;
-  margin-right: -15px;
-  padding-left: 20px;
-  padding-right: 20px;
-}
-
-.page-content > .list-item:not(.task-card):not(:last-child)::after {
-	left: 15px;
-	right: 15px;
-}
-
-/* FAB */
-.fab { 
-    position: fixed; 
-    bottom: 85px;
-    right: 20px; 
-    width: 56px; 
-    height: 56px; 
-    background-color: var(--primary-color); 
-    color: white; 
-    border-radius: 50%; 
-    display: flex; 
-    justify-content: center; 
-    align-items: center; 
-    box-shadow: 0 6px 20px rgba(140,90,59,0.3); 
-    z-index: 20; 
-    transform: translateZ(0);
-    overflow: hidden;
-}
-.fab.fab-no-tab-bar {
-	bottom: 30px;
-}
-.fab-icon { width: 28px; height: 28px; z-index: 1; } 
-
-/* Button */
-.btn {
-	padding: 10px; 
-	border: none;
-	border-radius: 12px;
-	font-size: 16px;
-	font-weight: 500;
-	text-align: center;
-	position: relative; 
-	overflow: hidden; 
-	transform: translateZ(0);
-	
-	&::after {
-		border: none;
-	}
-}
-
-.btn-primary {
-	background-color: var(--primary-color);
-	color: white;
-}
-
-.btn-secondary {
-	background-color: #f3e9e3;
-	color: var(--text-secondary);
-}
-
-.btn-danger {
-	background-color: var(--danger-color);
-	color: white;
-}
-
-.btn-dashed {
-	border: 1px dashed var(--primary-color);
-	color: var(--primary-color);
-	background: transparent;
-}
-
-.btn-full-width {
-	width: 100%;
-	display: block;
-	margin-top: 15px;
-}
-
-.btn-sm {
-	padding: 6px 12px;
-	font-size: 12px;
-	border-radius: 8px;
-}
-
-.btn-xs {
-	padding: 4px 8px;
-	font-size: 12px;
-	border-radius: 8px;
-}
-
-.btn-text-link {
-	width: 100%;
-	padding: 8px;
-	border: none;
-	color: var(--primary-color);
-	background: transparent;
-	border-radius: 10px;
-	margin-top: 10px;
-	font-size: 14px;
-}
-
 .modal-actions {
-	display: flex;
 	gap: 10px;
 	margin-top: 30px;
-}
 
-.modal-actions .btn {
-	flex: 1;
-}
+	/* #ifdef MP-WEIXIN */
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: 1fr;
+	/* #endif */
 
-/* Detail Header */
-.detail-header { display: flex; align-items: center; width: 100%; }
-.back-btn { 
-    font-size: 20px; 
-    cursor: pointer; 
-    margin-right: 10px; 
-    color: var(--text-secondary); 
-    position: relative;
-    overflow: hidden;
-    width: 40px; 
-    height: 40px;
-    border-radius: 50%; 
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transform: translateZ(0);
-    padding: 0;
+	/* #ifndef MP-WEIXIN */
+	display: flex;
+	& > * {
+		flex: 1;
+	}
+	/* #endif */
 }
-.detail-title { font-size: 20px; font-weight: 600; flex: 1; }
-
-.back-btn :deep(.ripple) {
-	background-color: rgba(0, 0, 0, 0.08);
-}
-
 
 /* Common Components */
 .tag-group { margin-bottom: 20px; }
@@ -227,41 +143,6 @@
 /* Modal Styles */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; backdrop-filter: blur(4px); background: rgba(0,0,0,0.2); z-index: 99; display: flex; justify-content: center; align-items: center; }
 .modal-content { background: white; border-radius: 20px; width: 80%; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-
-.options-list {
-	.option-item {
-		padding: 15px 0;
-		text-align: center;
-		cursor: pointer;
-
-		&:not(:last-child)::after {
-			left: 0;
-			right: 0;
-		}
-
-		&:active {
-			background-color: #f9f9f9;
-		}
-
-		:deep(.main-info) {
-			width: 100%;
-			justify-content: center;
-		}
-
-		:deep(.name) {
-			font-size: 18px;
-			font-weight: 500;
-		}
-
-		.danger-text {
-			color: var(--danger-color);
-		}
-
-		:deep(.desc) {
-			display: none;
-		}
-	}
-}
 
 /* [新增] 确认对话框的统一样式 */
 .modal-prompt-text {
@@ -281,5 +162,17 @@
 
 
 /* Loading and Empty State */
-.loading-spinner { display: flex; justify-content: center; align-items: center; padding-top: 100px; }
-.empty-state { text-align: center; padding: 50px 20px; color: var(--text-secondary); }
+.loading-spinner {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding-top: 100px;
+	/* [核心修改] 新增颜色定义，使其应用主题色 */
+	color: var(--text-secondary);
+}
+
+.empty-state {
+	text-align: center;
+	padding: 50px 20px;
+	color: var(--text-secondary);
+}

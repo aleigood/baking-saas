@@ -3,7 +3,8 @@
 		<view v-if="!chartData || chartData.length === 0" class="chart-placeholder">
 			暂无成本构成数据
 		</view>
-		<canvas v-else :id="canvasId" :canvas-id="canvasId" class="chart-canvas"></canvas>
+		<!-- [核心修改] 增加 type="2d" 属性以启用新的 Canvas 2D 接口 -->
+		<canvas v-else type="2d" :id="canvasId" :canvas-id="canvasId" class="chart-canvas"></canvas>
 	</view>
 </template>
 
@@ -19,36 +20,56 @@
 
 	const instance = getCurrentInstance();
 	const canvasId = `pie-chart-${Date.now()}-${Math.random().toString().slice(2)}`;
-	let ctx : UniApp.CanvasContext | null = null;
+	// [核心修改] ctx 类型变更为 CanvasRenderingContext2D
+	let ctx : CanvasRenderingContext2D | null = null;
 	let canvasWidth = 0;
 	let canvasHeight = 0;
 
-	// 监听数据变化，重新绘制图表
 	watch(() => props.chartData, () => {
-		if (ctx) {
+		// [核心修改] 确保 canvas 和 context 都已初始化
+		if (ctx && canvas) {
 			drawChart();
 		}
 	}, { deep: true });
 
 	onMounted(() => {
-		initChart();
+		// 延迟初始化以确保 canvas 元素已渲染
+		setTimeout(initChart, 150);
 	});
+
+	// [核心修改] canvas 节点引用
+	let canvas : any = null;
 
 	// 初始化 Canvas
 	const initChart = () => {
 		nextTick(() => {
-			// [核心修正] 使用 uni.createCanvasContext 获取绘图上下文
-			ctx = uni.createCanvasContext(canvasId, instance);
-
 			const query = uni.createSelectorQuery().in(instance);
 			query.select(`#${canvasId}`)
-				.boundingClientRect((res) => {
-					if (res) {
-						canvasWidth = res.width as number;
-						canvasHeight = res.height as number;
+				.fields({ node: true, size: true }) // [核心修改] 获取 node 节点
+				.exec((res) => {
+					if (res && res[0] && res[0].node) {
+						canvas = res[0].node;
+						ctx = canvas.getContext('2d');
+
+						// [核心修改] 使用条件编译，仅在小程序端进行高分屏适配
+						// #ifdef MP-WEIXIN
+						const dpr = uni.getWindowInfo().pixelRatio;
+						canvas.width = res[0].width * dpr;
+						canvas.height = res[0].height * dpr;
+						ctx!.scale(dpr, dpr);
+						// #endif
+
+						// [核心修改] 在非小程序端，直接使用CSS尺寸作为绘图尺寸
+						// #ifndef MP-WEIXIN
+						canvas.width = res[0].width;
+						canvas.height = res[0].height;
+						// #endif
+
+						canvasWidth = res[0].width;
+						canvasHeight = res[0].height;
 						drawChart();
 					}
-				}).exec();
+				});
 		});
 	};
 
@@ -58,7 +79,6 @@
 			return;
 		}
 
-		// 清空画布
 		ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
 		const colors = [
@@ -71,7 +91,6 @@
 		const total = displayData.reduce((sum, d) => sum + d.value, 0);
 		if (total === 0) return;
 
-		// 图表参数
 		const centerX = canvasWidth / 2;
 		const centerY = canvasHeight / 2;
 		const radius = Math.min(canvasWidth, canvasHeight) / 2 * 0.65;
@@ -80,32 +99,25 @@
 		let startAngle = -0.5 * Math.PI;
 
 		const labelPositions : { y : number, height : number }[] = [];
-		const LABEL_PADDING = 15; // 标签之间的最小垂直间距
 
 		const labelsToDraw = displayData.map((item, index) => {
 			const sliceAngle = (item.value / total) * 2 * Math.PI;
 			const endAngle = startAngle + sliceAngle;
 			const midAngle = startAngle + sliceAngle / 2;
 
-			// 绘制扇区
+			// [核心修改] 使用新的 Canvas 2D API
 			ctx!.beginPath();
 			ctx!.arc(centerX, centerY, radius, startAngle, endAngle);
 			ctx!.arc(centerX, centerY, innerRadius, endAngle, startAngle, true);
 			ctx!.closePath();
-			ctx!.setFillStyle(colors[index % colors.length]);
+			ctx!.fillStyle = colors[index % colors.length];
 			ctx!.fill();
 
 			startAngle = endAngle;
 
-			// 收集标签信息
-			return {
-				item,
-				index,
-				midAngle,
-			};
+			return { item, index, midAngle };
 		});
 
-		// 绘制标签和引线
 		labelsToDraw.forEach(({ item, index, midAngle }) => {
 			const isRightSide = midAngle > -0.5 * Math.PI && midAngle < 0.5 * Math.PI;
 
@@ -117,12 +129,11 @@
 			const lineHeight = 14;
 			let finalLabelY = lineMidY;
 
-			// 检查并调整标签的垂直位置以避免重叠
 			let isOverlapping = true;
 			while (isOverlapping) {
 				isOverlapping = false;
 				for (const pos of labelPositions) {
-					if (Math.abs(finalLabelY - pos.y) < pos.height + 5) { // 5px额外的间距
+					if (Math.abs(finalLabelY - pos.y) < pos.height + 5) {
 						isOverlapping = true;
 						finalLabelY += (finalLabelY > pos.y) ? (pos.height + 5) : -(pos.height + 5);
 						break;
@@ -134,26 +145,21 @@
 			const percentage = ((item.value / total) * 100).toFixed(1);
 			const text = `${item.name} ${percentage}%`;
 
-			const textWidth = ctx!.measureText(text).width;
-			// 确保文本不会超出画布边界
-			const textX = isRightSide ? Math.min(canvasWidth - 5, lineMidX + 10) : Math.max(5, lineMidX - 10 - textWidth);
-
-			// 绘制引线
+			// [核心修改] 使用新的 Canvas 2D API
 			ctx!.beginPath();
 			ctx!.moveTo(lineStartX, lineStartY);
 			ctx!.lineTo(isRightSide ? lineMidX + 5 : lineMidX - 5, finalLabelY);
-			ctx!.setStrokeStyle(colors[index % colors.length]);
+			ctx!.strokeStyle = colors[index % colors.length];
 			ctx!.stroke();
 
-			// 绘制文本
-			ctx!.setFillStyle(colors[index % colors.length]);
-			ctx!.setFontSize(12);
-			ctx!.setTextAlign(isRightSide ? 'left' : 'right');
-			ctx!.setTextBaseline('middle');
+			ctx!.fillStyle = colors[index % colors.length];
+			ctx!.font = '12px sans-serif';
+			ctx!.textAlign = isRightSide ? 'left' : 'right';
+			ctx!.textBaseline = 'middle';
 			ctx!.fillText(text, isRightSide ? lineMidX + 5 : lineMidX - 5, finalLabelY);
 		});
 
-		ctx.draw();
+		// [核心修改] 新版 API 无需 draw()
 	};
 </script>
 

@@ -1,13 +1,10 @@
 <template>
-	<view class="page-container">
-		<DetailHeader :title="ingredient?.name || '加载中...'">
-			<IconButton @click="openEditModal">
-				<image class="header-icon" src="/static/icons/property.svg" />
-			</IconButton>
-		</DetailHeader>
+	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
+	<view class="page-wrapper">
+		<DetailHeader :title="ingredient?.name || '加载中...'" />
 
-		<view class="page-content page-content-with-fab" v-if="!isLoading && ingredient">
-			<view class="detail-page">
+		<DetailPageLayout>
+			<view class="page-content page-content-with-fab" v-if="!isLoading && ingredient">
 				<view class="tag-group">
 					<span class="tag">品牌: {{ ingredient.activeSku?.brand || '未设置' }}</span>
 					<span class="tag">单价: ¥{{ getIngredientPricePerKg(ingredient) }}/kg</span>
@@ -22,16 +19,16 @@
 				</view>
 
 				<IngredientSkuList :ingredient="ingredient" :selected-sku-id="selectedSkuId" @select="handleSkuClick"
-					@longpress="handleSkuLongPressAction" @add="openAddSkuModal" />
+					@longpress-sku="handleSkuLongPressAction" @add="openAddSkuModal" />
 
 				<IngredientProcurementList :selected-sku="selectedSku" @longpress="handleProcurementLongPress" />
 			</view>
-		</view>
-		<view class="loading-spinner" v-else>
-			<text>加载中...</text>
-		</view>
+			<view class="loading-spinner" v-else>
+				<text>加载中...</text>
+			</view>
+		</DetailPageLayout>
 
-		<AppFab @click="openProcurementModal" class="fab-no-tab-bar" />
+		<ExpandingFab :actions="fabActions" :no-tab-bar="true" />
 
 		<AppModal v-model:visible="showEditModal" title="编辑原料属性">
 			<FormItem label="原料名称">
@@ -100,12 +97,12 @@
 
 		<AppModal v-model:visible="showSkuOptionsModal" title="品牌与规格" :no-header-line="true">
 			<view class="options-list">
-				<ListItem class="option-item" @click="handleActivateSkuOption">
+				<ListItem class="option-item" @click="handleActivateSkuOption" :bleed="true">
 					<view class="main-info">
 						<view class="name">设为使用中</view>
 					</view>
 				</ListItem>
-				<ListItem class="option-item" @click="handleDeleteSkuOption">
+				<ListItem class="option-item" @click="handleDeleteSkuOption" :bleed="true">
 					<view class="main-info">
 						<view class="name">删除此品牌</view>
 					</view>
@@ -145,7 +142,7 @@
 
 		<AppModal v-model:visible="showProcurementOptionsModal" title="采购记录" :no-header-line="true">
 			<view class="options-list">
-				<ListItem class="option-item" @click="handleDeleteProcurementOption">
+				<ListItem class="option-item" @click="handleDeleteProcurementOption" :bleed="true">
 					<view class="main-info">
 						<view class="name">删除采购记录</view>
 					</view>
@@ -185,7 +182,8 @@
 	import { getIngredientCostHistory, getIngredientUsageHistory } from '@/api/costing';
 	import AppModal from '@/components/AppModal.vue';
 	import FormItem from '@/components/FormItem.vue';
-	import AppFab from '@/components/AppFab.vue';
+	// [核心修改] 引入新的 ExpandingFab 组件
+	import ExpandingFab from '@/components/ExpandingFab.vue';
 	import LineChart from '@/components/LineChart.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import IconButton from '@/components/IconButton.vue';
@@ -195,6 +193,7 @@
 	import IngredientSkuList from '@/components/IngredientSkuList.vue';
 	import IngredientProcurementList from '@/components/IngredientProcurementList.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
+	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import { formatChineseDate } from '@/utils/format';
 
@@ -242,6 +241,12 @@
 		waterContent: 0,
 	});
 
+	// [核心新增] 定义FAB按钮的动作
+	const fabActions = ref([
+		{ icon: '/static/icons/add.svg', text: '增加采购', action: () => openProcurementModal() },
+		{ icon: '/static/icons/property.svg', text: '编辑属性', action: () => openEditModal() }
+	]);
+
 	onLoad(async (options) => {
 		const ingredientId = options?.ingredientId;
 		if (ingredientId) {
@@ -270,8 +275,8 @@
 			ingredientForm.waterContent = ingredientData.waterContent;
 
 
-			if (ingredientData.activeSkuId) {
-				selectedSkuId.value = ingredientData.activeSkuId;
+			if (ingredientData.activeSku?.id) {
+				selectedSkuId.value = ingredientData.activeSku.id;
 			} else if (ingredientData.skus.length > 0) {
 				selectedSkuId.value = ingredientData.skus[0].id;
 			}
@@ -350,12 +355,12 @@
 	});
 
 	const openProcurementModal = () => {
-		if (!ingredient.value?.activeSkuId) {
+		if (!ingredient.value?.activeSku?.id) {
 			toastStore.show({ message: '请先激活一个SKU才能进行采购', type: 'error' });
 			return;
 		}
 		procurementForm.value = {
-			skuId: ingredient.value.activeSkuId,
+			skuId: ingredient.value.activeSku.id,
 			packagesPurchased: 0,
 			totalPrice: 0,
 			purchaseDate: new Date().toISOString(),
@@ -392,7 +397,7 @@
 	};
 
 	const handleSkuLongPressAction = (sku : IngredientSKU) => {
-		if (sku.id === ingredient.value?.activeSkuId) {
+		if (sku.id === ingredient.value?.activeSku?.id) {
 			return;
 		}
 		selectedSkuForAction.value = sku;
@@ -401,7 +406,7 @@
 
 	const handleActivateSkuOption = () => {
 		showSkuOptionsModal.value = false;
-		if (selectedSkuForAction.value?.id !== ingredient.value?.activeSkuId) {
+		if (selectedSkuForAction.value?.id !== ingredient.value?.activeSku?.id) {
 			showActivateSkuConfirmModal.value = true;
 		} else {
 			toastStore.show({ message: '该规格已在使用中', type: 'info' });
@@ -512,17 +517,26 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
+	/* [兼容性修复] 引入新增的 Mixin */
+	@include list-item-option-style;
+
+	.page-wrapper {
+		display: flex;
+		flex-direction: column;
+		height: 100vh;
+	}
+
 	.header-icon {
 		width: 24px;
 		height: 24px;
 	}
 
-	.detail-page .tag-group {
+	.tag-group {
 		margin-bottom: 20px;
-		padding: 0 5px;
+		padding: 0px;
 		display: flex;
 		flex-wrap: wrap;
-		gap: 8px;
+		gap: 5px;
 	}
 
 	.picker,

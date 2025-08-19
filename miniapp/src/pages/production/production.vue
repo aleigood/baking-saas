@@ -1,7 +1,5 @@
 <template>
 	<view>
-		<!-- [重构] 使用 MainHeader 组件 -->
-		<MainHeader />
 		<view class="page-content page-content-with-tabbar-fab">
 			<view class="summary-card">
 				<div>
@@ -18,12 +16,10 @@
 				<span class="card-title">进行中的任务</span>
 				<view class="header-actions">
 					<IconButton v-if="hasCompletedTasks" @click="navigateToHistory">
-						<image class="header-icon"
-							src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238c5a3b'%3E%3Cpath d='M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8H12z'/%3E%3C/svg%3E" />
+						<image class="header-icon" src="/static/icons/history.svg" />
 					</IconButton>
 					<IconButton @click="navigateToStats">
-						<image class="header-icon"
-							src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238c5a3b'%3E%3Cpath d='M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z'/%3E%3C/svg%3E" />
+						<image class="header-icon" src="/static/icons/stats.svg" />
 					</IconButton>
 				</view>
 			</view>
@@ -33,8 +29,8 @@
 			</view>
 			<view v-else-if="sortedTasks.length > 0">
 				<ListItem v-for="task in sortedTasks" :key="task.id" @click="navigateToDetail(task)"
-					@longpress="openTaskActions(task)" :vibrate-on-long-press="true" class="task-card"
-					:class="getStatusClass(task.status)">
+					@longpress="openTaskActions(task)" :vibrate-on-long-press="true" card-mode
+					:style="getTaskCardStyle(task)">
 					<view class="task-info">
 						<view class="title">{{ getTaskTitle(task) }}</view>
 						<view class="details">{{ getTaskDetails(task) }}</view>
@@ -54,7 +50,7 @@
 		<AppModal :visible="uiStore.showTaskActionsModal" @update:visible="uiStore.closeModal(MODAL_KEYS.TASK_ACTIONS)"
 			title="制作任务" :no-header-line="true">
 			<view class="options-list">
-				<ListItem class="option-item" @click="handleOpenCancelConfirm">
+				<ListItem class="option-item" @click="handleOpenCancelConfirm" :bleed="true">
 					<view class="main-info">
 						<view class="name">取消任务</view>
 					</view>
@@ -99,7 +95,7 @@
 	} from '@/store/ui';
 	import { useToastStore } from '@/store/toast';
 	import { MODAL_KEYS } from '@/constants/modalKeys';
-	import MainHeader from '@/components/MainHeader.vue'; // [新增]
+	import MainHeader from '@/components/MainHeader.vue';
 	import AppModal from '@/components/AppModal.vue';
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
@@ -146,15 +142,19 @@
 	};
 
 	onShow(async () => {
-		if (!dataStore.dataLoaded.production) {
-			isInitialLoad.value = true;
-			await Promise.all([
-				dataStore.fetchProductionData(),
-				fetchHomeStats()
-			]);
-			isInitialLoad.value = false;
-		} else {
-			await fetchHomeStats();
+		try {
+			if (!dataStore.dataLoaded.production) {
+				isInitialLoad.value = true;
+				await Promise.all([
+					dataStore.fetchProductionData(),
+					fetchHomeStats()
+				]);
+			} else {
+				await fetchHomeStats();
+			}
+		} catch (error) {
+			console.error("Failed to load data on show:", error);
+		} finally {
 			isInitialLoad.value = false;
 		}
 	});
@@ -182,6 +182,18 @@
 			return '未知任务';
 		}
 		return task.items.map(item => `${item.product.name} x${item.quantity}`).join('、');
+	};
+
+	// [新增] 方法：根据任务状态返回动态样式对象
+	const getTaskCardStyle = (task : ProductionTaskDto) => {
+		const colorMap = {
+			PENDING: '#d4a373',
+			IN_PROGRESS: '#27ae60',
+		};
+		const color = colorMap[task.status] || 'transparent';
+		return {
+			'--card-border-color': color
+		};
 	};
 
 	const getTotalQuantity = (task : ProductionTaskDto) => {
@@ -273,12 +285,14 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+	/* [兼容性修复] 引入新增的 Mixin */
+	@include list-item-option-style;
 
 	.summary-card {
 		display: flex;
 		justify-content: space-around;
 		background: var(--card-bg);
-		padding: 20px;
+		padding: 25px 20px;
 		border-radius: 20px;
 		margin-bottom: 20px;
 		text-align: center;
@@ -297,34 +311,13 @@
 		margin-top: 5px;
 	}
 
-	.task-card {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		background: var(--card-bg);
-		padding: 20px;
-		border-radius: 20px;
-		margin-bottom: 15px;
-		cursor: pointer;
-		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-		border-left: 5px solid;
-		border-bottom: none !important;
-	}
-
-	.task-card.status-pending {
-		border-color: #d4a373;
-	}
-
-	.task-card.status-inprogress {
-		border-color: #27ae60;
-	}
-
 	.task-info {
 		flex: 1;
 		margin-right: 15px;
 	}
 
-	.task-card .title {
+	.title {
+		color: var(--text-primary);
 		font-size: 16px;
 		font-weight: 400;
 		margin-bottom: 8px;
@@ -337,7 +330,7 @@
 		line-height: 1.4;
 	}
 
-	.task-card .details {
+	.details {
 		color: var(--text-secondary);
 		font-size: 14px;
 	}

@@ -103,7 +103,6 @@
 		underlineStyle.value = {
 			width: `${stretchWidth}px`,
 			transform: `translateX(${stretchLeft}px)`,
-			// [核心修改] 将 ease-out 改为 ease-in 以实现加速效果
 			transition: 'transform 0.15s ease-out, width 0.15s ease-out',
 		};
 
@@ -115,7 +114,7 @@
 				transform: `translateX(${newLeft}px)`,
 				transition: 'transform 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55), width 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55)',
 			};
-		}, 120); // 缩短延迟以匹配更快的拉伸动画
+		}, 120);
 	};
 
 	const handleClick = (key : string, index : number) => {
@@ -135,7 +134,6 @@
 		position: relative;
 		display: inline-flex;
 		gap: 20px;
-		/* [核心修正] 移除内边距，解决偏移问题 */
 		padding: 5px 0;
 	}
 
@@ -146,6 +144,8 @@
 		cursor: pointer;
 		transition: color 0.3s ease-in-out;
 		z-index: 1;
+		/* [兼容性修复] 移除微信小程序和其他 webkit 内核浏览器中的点击高亮效果 */
+		-webkit-tap-highlight-color: transparent;
 
 		&.active {
 			color: var(--primary-color);
@@ -155,7 +155,7 @@
 
 	.underline {
 		position: absolute;
-		bottom: 8px; // 与 tab-item 的 padding-bottom 对齐
+		bottom: 8px;
 		height: 3px;
 		background-color: var(--primary-color);
 		border-radius: 2px;

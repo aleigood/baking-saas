@@ -1,9 +1,9 @@
 <template>
-	<view class="page-container">
+	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
+	<view class="page-wrapper">
 		<DetailHeader :title="recipeFamily?.name || '加载中...'" />
-		<view class="page-content" v-if="!isLoading && recipeFamily">
-			<view class="detail-page">
-				<!-- [修改] 传入配方状态 -->
+		<DetailPageLayout>
+			<view class="page-content" v-if="!isLoading && recipeFamily">
 				<RecipeVersionList :versions="recipeVersions" :selected-version-id="displayedVersionId"
 					:can-edit="canEditRecipe" :is-discontinued="recipeFamily.deletedAt !== null"
 					@select-version="handleVersionClick" @create-version="handleCreateVersion"
@@ -12,19 +12,19 @@
 				<MainRecipeDetail v-if="recipeFamily.type === 'MAIN'" :version="displayedVersion" />
 				<SimpleRecipeDetail v-else :version="displayedVersion" />
 			</view>
-		</view>
-		<view class="loading-spinner" v-else>
-			<text>加载中...</text>
-		</view>
+			<view class="loading-spinner" v-else>
+				<text>加载中...</text>
+			</view>
+		</DetailPageLayout>
 
 		<AppModal v-model:visible="showVersionOptionsModal" title="配方版本" :no-header-line="true">
 			<view class="options-list">
-				<ListItem class="option-item" @click="handleActivateVersionOption">
+				<ListItem class="option-item" @click="handleActivateVersionOption" :bleed="true">
 					<view class="main-info">
 						<view class="name">设为使用中</view>
 					</view>
 				</ListItem>
-				<ListItem class="option-item" @click="handleDeleteVersionOption">
+				<ListItem class="option-item" @click="handleDeleteVersionOption" :bleed="true">
 					<view class="main-info">
 						<view class="name">删除配方版本</view>
 					</view>
@@ -83,6 +83,7 @@
 	import ListItem from '@/components/ListItem.vue';
 	import Toast from '@/components/Toast.vue';
 	import DetailHeader from '@/components/DetailHeader.vue';
+	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -227,7 +228,16 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	.detail-page {}
+	/* [兼容性修复] 引入新增的 Mixin */
+	@include list-item-option-style;
+
+	.page-wrapper {
+		display: flex;
+		flex-direction: column;
+		height: 100vh;
+	}
+
+	/* [核心修改] 移除不再需要的 .content-padding 样式 */
 
 	.modal-prompt-text {
 		font-size: 16px;

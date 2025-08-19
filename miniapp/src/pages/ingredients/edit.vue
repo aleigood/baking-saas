@@ -1,46 +1,47 @@
 <template>
-	<view class="page-container">
-		<!-- [重构] 使用 DetailHeader 组件 -->
+	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
+	<view class="page-wrapper">
 		<DetailHeader title="新建原料" />
-		<view class="page-content">
-			<view class="card">
-				<view class="card-title">原料品类</view>
-				<FormItem label="原料名称">
-					<input class="input-field" v-model="ingredientForm.name" placeholder="例如：高筋粉" />
-				</FormItem>
+		<DetailPageLayout>
+			<view class="page-content">
+				<view class="card">
+					<view class="card-title">原料品类</view>
+					<FormItem label="原料名称">
+						<input class="input-field" v-model="ingredientForm.name" placeholder="例如：高筋粉" />
+					</FormItem>
+				</view>
+
+				<view class="card">
+					<view class="card-title">首个SKU（具体商品）</view>
+					<FormItem label="品牌">
+						<input class="input-field" v-model="skuForm.brand" placeholder="例如：王后" />
+					</FormItem>
+					<FormItem label="规格名称">
+						<input class="input-field" v-model="skuForm.specName" placeholder="例如：1kg袋装" />
+					</FormItem>
+					<FormItem label="规格重量 (g)">
+						<input class="input-field" type="number" v-model.number="skuForm.specWeightInGrams"
+							placeholder="例如：1000" />
+					</FormItem>
+				</view>
+
+				<view class="card">
+					<view class="card-title">首次采购入库</view>
+					<FormItem label="采购包数">
+						<input class="input-field" type="number" v-model.number="procurementForm.packagesPurchased"
+							placeholder="例如：10" />
+					</FormItem>
+					<FormItem label="采购总价 (元)">
+						<input class="input-field" type="number" v-model.number="procurementForm.totalPrice"
+							placeholder="例如：255" />
+					</FormItem>
+				</view>
+
+				<AppButton type="primary" full-width @click="handleSubmit" :loading="isSubmitting">
+					{{ isSubmitting ? '保存中...' : '保存并入库' }}
+				</AppButton>
 			</view>
-
-			<view class="card">
-				<view class="card-title">首个SKU（具体商品）</view>
-				<FormItem label="品牌">
-					<input class="input-field" v-model="skuForm.brand" placeholder="例如：王后" />
-				</FormItem>
-				<FormItem label="规格名称">
-					<input class="input-field" v-model="skuForm.specName" placeholder="例如：1kg袋装" />
-				</FormItem>
-				<FormItem label="规格重量 (g)">
-					<input class="input-field" type="number" v-model.number="skuForm.specWeightInGrams"
-						placeholder="例如：1000" />
-				</FormItem>
-			</view>
-
-			<view class="card">
-				<view class="card-title">首次采购入库</view>
-				<FormItem label="采购包数">
-					<input class="input-field" type="number" v-model.number="procurementForm.packagesPurchased"
-						placeholder="例如：10" />
-				</FormItem>
-				<FormItem label="采购总价 (元)">
-					<input class="input-field" type="number" v-model.number="procurementForm.totalPrice"
-						placeholder="例如：255" />
-				</FormItem>
-			</view>
-
-			<AppButton type="primary" full-width @click="handleSubmit" :loading="isSubmitting">
-				{{ isSubmitting ? '保存中...' : '保存并入库' }}
-			</AppButton>
-		</view>
-
+		</DetailPageLayout>
 		<Toast />
 	</view>
 </template>
@@ -53,7 +54,8 @@
 	import FormItem from '@/components/FormItem.vue';
 	import AppButton from '@/components/AppButton.vue';
 	import Toast from '@/components/Toast.vue';
-	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader 组件
+	import DetailHeader from '@/components/DetailHeader.vue';
+	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 
 	const dataStore = useDataStore();
 	const toastStore = useToastStore();
@@ -114,6 +116,12 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+
+	.page-wrapper {
+		display: flex;
+		flex-direction: column;
+		height: 100vh;
+	}
 
 	.input-field {
 		width: 100%;

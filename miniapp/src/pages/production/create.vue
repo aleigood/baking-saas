@@ -1,41 +1,45 @@
 <template>
-	<view class="page-container">
-		<!-- [重构] 使用 DetailHeader 组件 -->
+	<!-- 1. 添加 page-meta -->
+	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
+	<!-- 2. 根 view class 改为 page-wrapper -->
+	<view class="page-wrapper">
 		<DetailHeader title="新建生产任务" />
-		<view class="page-content">
-			<view class="loading-spinner" v-if="isLoading">
-				<text>加载中...</text>
-			</view>
-			<template v-else>
-				<view v-for="(group, groupName) in groupedProducts" :key="groupName" class="card product-group">
-					<view class="group-title" @click="toggleGroup(groupName)">
-						<span>{{ groupName }}</span>
-						<span class="arrow" :class="{ collapsed: collapsedGroups.has(groupName) }">&#10094;</span>
-					</view>
-					<view v-show="!collapsedGroups.has(groupName)" class="product-list">
-						<view v-for="product in group" :key="product.id" class="product-item">
-							<view class="product-name">{{ product.name }}</view>
-							<view class="quantity-control">
-								<view class="btn-stepper" @click="decreaseQuantity(product.id)" v-ripple>
-									<image class="stepper-icon"
-										src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a98467'%3E%3Cpath d='M19 13H5v-2h14v2z'/%3E%3C/svg%3E" />
-								</view>
-								<input class="input-stepper" type="number"
-									v-model.number="taskQuantities[product.id]" />
-								<view class="btn-stepper" @click="increaseQuantity(product.id)" v-ripple>
-									<image class="stepper-icon"
-										src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a98467'%3E%3Cpath d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/%3E%3C/svg%3E" />
+		<!-- 4. 使用 DetailPageLayout 包裹滚动内容 -->
+		<DetailPageLayout>
+			<view class="page-content">
+				<view class="loading-spinner" v-if="isLoading">
+					<text>加载中...</text>
+				</view>
+				<template v-else>
+					<view v-for="(group, groupName) in groupedProducts" :key="groupName" class="card product-group">
+						<view class="group-title" @click="toggleGroup(groupName)">
+							<span>{{ groupName }}</span>
+							<span class="arrow" :class="{ collapsed: collapsedGroups.has(groupName) }">&#10094;</span>
+						</view>
+						<view v-show="!collapsedGroups.has(groupName)" class="product-list">
+							<view v-for="product in group" :key="product.id" class="product-item">
+								<view class="product-name">{{ product.name }}</view>
+								<view class="quantity-control">
+									<StepperButton @click="decreaseQuantity(product.id)">
+										<image class="stepper-icon" src="/static/icons/remove.svg" />
+									</StepperButton>
+									<input class="input-stepper" type="number"
+										v-model.number="taskQuantities[product.id]" />
+									<StepperButton @click="increaseQuantity(product.id)">
+										<image class="stepper-icon" src="/static/icons/add.svg" />
+									</StepperButton>
 								</view>
 							</view>
 						</view>
 					</view>
-				</view>
-				<AppButton type="primary" full-width :disabled="!hasTasksToCreate" @click="handleCreateTasks"
-					:loading="isCreating">
-					{{ isCreating ? '' : '创建任务' }}
-				</AppButton>
-			</template>
-		</view>
+					<AppButton type="primary" full-width :disabled="!hasTasksToCreate" @click="handleCreateTasks"
+						:loading="isCreating">
+						{{ isCreating ? '' : '创建任务' }}
+					</AppButton>
+				</template>
+			</view>
+		</DetailPageLayout>
+		<Toast />
 	</view>
 </template>
 
@@ -43,16 +47,22 @@
 	import { ref, computed, reactive } from 'vue';
 	import { onShow } from '@dcloudio/uni-app';
 	import { useDataStore } from '@/store/data';
+	import { useToastStore } from '@/store/toast';
 	import { createTask } from '@/api/tasks';
 	import AppButton from '@/components/AppButton.vue';
-	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader 组件
+	import DetailHeader from '@/components/DetailHeader.vue';
+	import StepperButton from '@/components/StepperButton.vue';
+	// 3. 引入 DetailPageLayout
+	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import type { ProductionTaskDto } from '@/types/api';
+	import Toast from '@/components/Toast.vue';
 
 	const dataStore = useDataStore();
 	const isLoading = ref(false);
 	const isCreating = ref(false);
 	const taskQuantities = reactive<Record<string, number>>({});
 	const collapsedGroups = reactive(new Set<string>());
+	const toastStore = useToastStore();
 
 	onShow(async () => {
 		isLoading.value = true;
@@ -106,12 +116,11 @@
 			}));
 
 		if (productsToCreate.length === 0) {
-			uni.showToast({ title: '请输入要生产的数量', icon: 'none' });
+			toastStore.show({ message: '请输入要生产的数量', type: 'error' });
 			return;
 		}
 
 		isCreating.value = true;
-		uni.showLoading({ title: '正在生成任务...' });
 		try {
 			const payload = {
 				plannedDate: new Date().toISOString(),
@@ -119,7 +128,7 @@
 			};
 			await createTask(payload);
 			uni.hideLoading();
-			uni.showToast({ title: '任务创建成功', icon: 'success' });
+			toastStore.show({ message: '任务已创建', type: 'success' });
 			await dataStore.fetchProductionData();
 			uni.navigateBack();
 		} catch (error) {
@@ -134,8 +143,11 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	.page-container {
-		padding-bottom: 20px;
+	/* 5. 添加 page-wrapper 样式 */
+	.page-wrapper {
+		display: flex;
+		flex-direction: column;
+		height: 100vh;
 	}
 
 	.product-group {
@@ -185,18 +197,6 @@
 		display: flex;
 		align-items: center;
 		gap: 5px;
-	}
-
-	.btn-stepper {
-		width: 30px;
-		height: 30px;
-		padding: 0;
-		background-color: #f3e9e3;
-		border-radius: 50%;
-		border: none;
-		display: flex;
-		align-items: center;
-		justify-content: center;
 	}
 
 	.stepper-icon {

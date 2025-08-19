@@ -1,47 +1,52 @@
 <template>
-	<view class="page-container">
-		<!-- [重构] 使用 DetailHeader 组件 -->
+	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
+	<view class="page-wrapper">
 		<DetailHeader title="制作历史" />
-		<view class="page-content">
-			<view class="loading-spinner" v-if="isLoading && !dataStore.dataLoaded.historicalTasks">
-				<text>加载中...</text>
-			</view>
-			<template v-else>
-				<view v-if="Object.keys(sortedGroupedTasks).length > 0">
-					<view v-for="(tasks, date) in sortedGroupedTasks" :key="date" class="task-group">
-						<view class="date-header">{{ date }}</view>
-						<ListItem v-for="task in tasks" :key="task.id" class="task-card"
-							:class="getStatusClass(task.status)" @click="navigateToDetail(task)">
-							<view class="task-info">
-								<view class="title">{{ getTaskTitle(task) }}</view>
-								<view class="details">{{ getTaskDetails(task) }}</view>
-							</view>
-							<view class="status-tag" :class="getStatusClass(task.status)">
-								{{ getStatusText(task.status) }}
-							</view>
-						</ListItem>
+		<!-- [核心修改] 监听 DetailPageLayout 派发出的 @scrolltolower 事件，并绑定 handleLoadMore 方法 -->
+		<DetailPageLayout @scrolltolower="handleLoadMore">
+			<view class="page-content">
+				<view class="loading-spinner" v-if="isLoading && !dataStore.dataLoaded.historicalTasks">
+					<text>加载中...</text>
+				</view>
+				<template v-else>
+					<view v-if="Object.keys(sortedGroupedTasks).length > 0">
+						<view v-for="(tasks, date) in sortedGroupedTasks" :key="date" class="task-group">
+							<view class="date-header">{{ date }}</view>
+							<ListItem v-for="task in tasks" :key="task.id" card-mode :style="getTaskCardStyle(task)"
+								@click="navigateToDetail(task)">
+								<view class="task-info">
+									<view class="title">{{ getTaskTitle(task) }}</view>
+									<view class="details">{{ getTaskDetails(task) }}</view>
+								</view>
+								<view class="status-tag" :class="getStatusClass(task.status)">
+									{{ getStatusText(task.status) }}
+								</view>
+							</ListItem>
+						</view>
 					</view>
-				</view>
-				<view v-else class="empty-state">
-					<text>暂无历史任务</text>
-				</view>
-				<view class="load-more-container">
-					<view v-if="isLoadingMore" class="loading-spinner">加载中...</view>
-					<view v-if="!dataStore.historicalTasksMeta.hasMore && !isLoading" class="no-more-tasks">没有更多了</view>
-				</view>
-			</template>
-		</view>
+					<view v-else class="empty-state">
+						<text>暂无历史任务</text>
+					</view>
+					<view class="load-more-container">
+						<view v-if="isLoadingMore" class="loading-spinner">加载中...</view>
+						<view v-if="!dataStore.historicalTasksMeta.hasMore && !isLoading" class="no-more-tasks">没有更多了
+						</view>
+					</view>
+				</template>
+			</view>
+		</DetailPageLayout>
 	</view>
 </template>
 
 <script setup lang="ts">
 	import { ref, computed } from 'vue';
-	import { onShow, onReachBottom } from '@dcloudio/uni-app';
+	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import type { ProductionTaskDto } from '@/types/api';
 	import ListItem from '@/components/ListItem.vue';
-	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader 组件
+	import DetailHeader from '@/components/DetailHeader.vue';
+	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import { formatChineseDate } from '@/utils/format';
 
 	const userStore = useUserStore();
@@ -57,13 +62,16 @@
 		}
 	});
 
-	onReachBottom(async () => {
+	// [核心修改] 移除 onReachBottom，因为它不再被触发
+
+	// [核心修改] 新增 handleLoadMore 方法来处理加载逻辑
+	const handleLoadMore = async () => {
 		if (dataStore.historicalTasksMeta.hasMore && !isLoadingMore.value) {
 			isLoadingMore.value = true;
 			await dataStore.fetchHistoricalTasks(true);
 			isLoadingMore.value = false;
 		}
-	});
+	};
 
 	const sortedGroupedTasks = computed(() => {
 		const tasksByDate = dataStore.historicalTasks;
@@ -120,6 +128,17 @@
 		return map[status] || '';
 	};
 
+	const getTaskCardStyle = (task : ProductionTaskDto) => {
+		const colorMap = {
+			COMPLETED: '#a9c1de',
+			CANCELLED: '#a8a8a8',
+		};
+		const color = colorMap[task.status] || 'transparent';
+		return {
+			'--card-border-color': color
+		};
+	};
+
 	const navigateToDetail = (task : ProductionTaskDto) => {
 		uni.navigateTo({
 			url: `/pages/production/detail?taskId=${task.id}`
@@ -129,6 +148,12 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+
+	.page-wrapper {
+		display: flex;
+		flex-direction: column;
+		height: 100vh;
+	}
 
 	.task-group {
 		margin-bottom: 20px;
@@ -141,34 +166,12 @@
 		padding: 0 5px 15px;
 	}
 
-	.task-card {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		background: var(--card-bg);
-		padding: 20px;
-		border-radius: 20px;
-		margin-bottom: 15px;
-		cursor: pointer;
-		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-		border-left: 5px solid;
-		border-bottom: none !important;
-	}
-
-	.task-card.status-completed {
-		border-color: #a9c1de;
-	}
-
-	.task-card.status-cancelled {
-		border-color: #a8a8a8;
-	}
-
 	.task-info {
 		flex: 1;
 		margin-right: 15px;
 	}
 
-	.task-card .title {
+	.title {
 		font-size: 16px;
 		font-weight: 400;
 		margin-bottom: 8px;
@@ -181,7 +184,7 @@
 		line-height: 1.4;
 	}
 
-	.task-card .details {
+	.details {
 		color: var(--text-secondary);
 		font-size: 14px;
 	}

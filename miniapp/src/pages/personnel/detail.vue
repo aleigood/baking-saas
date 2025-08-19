@@ -1,41 +1,43 @@
 <template>
-	<view class="page-container">
-		<!-- [重构] 使用 DetailHeader 组件 -->
+	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
+	<view class="page-wrapper">
 		<DetailHeader :title="selectedMember?.name || selectedMember?.phone || '加载中...'" />
-		<view class="page-content" v-if="!isLoading && selectedMember">
-			<view class="card">
-				<view class="card-title">人员信息</view>
-				<FormItem label="姓名">
-					<input class="input-field" type="text" :value="selectedMember.name || '未设置'" readonly />
-				</FormItem>
-				<FormItem label="手机号">
-					<input class="input-field" type="text" :value="selectedMember.phone" readonly />
-				</FormItem>
-				<FormItem label="加入日期">
-					<input class="input-field" type="text" :value="formatChineseDate(selectedMember.joinDate)"
-						readonly />
-				</FormItem>
-				<FormItem label="角色">
-					<picker mode="selector" :range="availableRolesDisplay" @change="onRoleChange"
-						:disabled="!canEditRole">
-						<view class="picker" :class="{ disabled: !canEditRole }">{{
+		<DetailPageLayout>
+			<view class="page-content" v-if="!isLoading && selectedMember">
+				<view class="card">
+					<view class="card-title">人员信息</view>
+					<FormItem label="姓名">
+						<input class="input-field" type="text" :value="selectedMember.name || '未设置'" readonly />
+					</FormItem>
+					<FormItem label="手机号">
+						<input class="input-field" type="text" :value="selectedMember.phone" readonly />
+					</FormItem>
+					<FormItem label="加入日期">
+						<input class="input-field" type="text" :value="formatChineseDate(selectedMember.joinDate)"
+							readonly />
+					</FormItem>
+					<FormItem label="角色">
+						<picker mode="selector" :range="availableRolesDisplay" @change="onRoleChange"
+							:disabled="!canEditRole">
+							<view class="picker" :class="{ disabled: !canEditRole }">{{
                     editableMemberRoleDisplay
                   }}</view>
-					</picker>
-				</FormItem>
-				<AppButton type="primary" full-width @click="handleUpdateMemberRole"
-					:disabled="!canEditRole || isSubmitting" :loading="isSubmitting">
-					{{ isSubmitting ? '' : '保存修改' }}
-				</AppButton>
-				<AppButton type="danger" full-width @click="handleRemoveMember"
-					:disabled="!canRemoveMember || isSubmitting">
-					移除员工
-				</AppButton>
+						</picker>
+					</FormItem>
+					<AppButton type="primary" full-width @click="handleUpdateMemberRole"
+						:disabled="!canEditRole || isSubmitting" :loading="isSubmitting">
+						{{ isSubmitting ? '' : '保存修改' }}
+					</AppButton>
+					<AppButton type="danger" full-width @click="handleRemoveMember"
+						:disabled="!canRemoveMember || isSubmitting">
+						移除员工
+					</AppButton>
+				</view>
 			</view>
-		</view>
-		<view class="loading-spinner" v-else>
-			<text>加载中...</text>
-		</view>
+			<view class="loading-spinner" v-else>
+				<text>加载中...</text>
+			</view>
+		</DetailPageLayout>
 	</view>
 </template>
 
@@ -49,7 +51,8 @@
 	import { updateMember, removeMember } from '@/api/members';
 	import FormItem from '@/components/FormItem.vue';
 	import AppButton from '@/components/AppButton.vue';
-	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader 组件
+	import DetailHeader from '@/components/DetailHeader.vue';
+	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import { formatChineseDate } from '@/utils/format';
 
 	const userStore = useUserStore();
@@ -141,6 +144,7 @@
 			await dataStore.fetchMembersData();
 			uni.navigateBack();
 		} catch (error : any) {
+			// [修改] 增加异常捕获
 			console.error('Failed to update role:', error);
 		} finally {
 			isSubmitting.value = false;
@@ -162,6 +166,7 @@
 						await dataStore.fetchMembersData();
 						uni.navigateBack();
 					} catch (error : any) {
+						// [修改] 增加异常捕获
 						console.error('Failed to remove member:', error);
 					} finally {
 						isSubmitting.value = false;
@@ -174,6 +179,12 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+
+	.page-wrapper {
+		display: flex;
+		flex-direction: column;
+		height: 100vh;
+	}
 
 	.input-field,
 	.picker {

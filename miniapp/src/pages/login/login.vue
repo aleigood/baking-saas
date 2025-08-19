@@ -9,19 +9,22 @@
 				{{ loading ? '登录中...' : '登 录' }}
 			</AppButton>
 		</view>
+		<Toast />
 	</view>
 </template>
 <script lang="ts" setup>
 	import { reactive, ref } from 'vue';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
-	import { useToastStore } from '@/store/toast'; // [新增] 引入 toast store
+	import { useToastStore } from '@/store/toast';
 	import AppButton from '@/components/AppButton.vue';
+	// [新增] 引入 Toast 组件
+	import Toast from '@/components/Toast.vue';
 
 	const loading = ref(false);
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
-	const toastStore = useToastStore(); // [新增] 获取 toast store 实例
+	const toastStore = useToastStore();
 
 	const form = reactive({
 		phone: '13966666666',
@@ -34,8 +37,8 @@
 		if (loginSuccess) {
 			await userStore.fetchUserInfo();
 			await dataStore.fetchTenants();
-			// [修改] 使用新的 Toast 系统
-			toastStore.show({ message: '登录成功', type: 'success' });
+			// [移除] 不再显示 "登录成功" 的 toast
+			// toastStore.show({ message: '登录成功', type: 'success' }); 
 			uni.reLaunch({ url: '/pages/main/main' });
 		}
 		loading.value = false;

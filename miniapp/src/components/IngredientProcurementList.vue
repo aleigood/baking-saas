@@ -10,13 +10,16 @@
 				<text class="col-total">总价</text>
 			</view>
 			<view v-if="displayedProcurementRecords && displayedProcurementRecords.length > 0">
+				<!-- [核心修改] 传入 :no-padding="true" 属性 -->
 				<ListItem v-for="record in displayedProcurementRecords" :key="record.id" class="procurement-item"
-					@longpress="$emit('longpress', record)" :vibrate-on-long-press="true">
-					<text class="col-date">{{ formatChineseDate(record.purchaseDate) }}</text>
-					<text class="col-quantity">{{ record.packagesPurchased }} 包</text>
-					<text class="col-price">¥{{ Number(record.pricePerPackage).toFixed(2) }}</text>
-					<text
-						class="col-total">¥{{ (record.packagesPurchased * Number(record.pricePerPackage)).toFixed(2) }}</text>
+					@longpress="$emit('longpress', record)" :vibrate-on-long-press="true" :no-padding="true">
+					<view class="procurement-item-content">
+						<text class="col-date">{{ formatChineseDate(record.purchaseDate) }}</text>
+						<text class="col-quantity">{{ record.packagesPurchased }} 包</text>
+						<text class="col-price">¥{{ Number(record.pricePerPackage).toFixed(2) }}</text>
+						<text
+							class="col-total">¥{{ (record.packagesPurchased * Number(record.pricePerPackage)).toFixed(2) }}</text>
+					</view>
 				</ListItem>
 			</view>
 			<view v-else class="empty-procurements">
@@ -29,7 +32,7 @@
 
 <script setup lang="ts">
 	import { ref, computed, type PropType } from 'vue';
-	import type { IngredientSKU } from '@/types/api';
+	import type { IngredientSKU, ProcurementRecord } from '@/types/api';
 	import { formatChineseDate } from '@/utils/format';
 	import ListItem from '@/components/ListItem.vue';
 	import AppButton from '@/components/AppButton.vue';
@@ -70,23 +73,28 @@
 
 	.procurement-list {
 
-		.list-header,
-		.procurement-item {
+		.list-header {
 			display: grid;
 			grid-template-columns: 2fr 1.5fr 1.5fr 1.5fr;
 			align-items: center;
 			padding: 8px 5px;
 			font-size: 13px;
-		}
-
-		.list-header {
 			font-weight: 600;
 			color: var(--primary-color);
 			border-bottom: 1px solid var(--border-color);
 			margin-bottom: 5px;
 		}
 
-		.procurement-item {
+		/* [核心修改] 移除不再需要的 :deep() 样式覆盖 */
+		.procurement-item {}
+
+		.procurement-item-content {
+			display: grid;
+			grid-template-columns: 2fr 1.5fr 1.5fr 1.5fr;
+			align-items: center;
+			width: 100%;
+			padding: 8px 5px;
+			font-size: 13px;
 			color: var(--text-secondary);
 		}
 

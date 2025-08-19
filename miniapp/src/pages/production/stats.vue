@@ -1,74 +1,78 @@
 <template>
-	<view class="page-container">
-		<!-- [重构] 使用 DetailHeader 组件 -->
+	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
+	<view class="page-wrapper">
 		<DetailHeader title="生产统计" />
-		<view class="page-content">
-			<view class="date-range-selector">
-				<FilterTabs>
-					<FilterTab :active="activeDateRange === 'week'" @click="setDateRange('week')">本周</FilterTab>
-					<FilterTab :active="activeDateRange === 'month'" @click="setDateRange('month')">本月</FilterTab>
-					<FilterTab :active="activeDateRange === '7days'" @click="setDateRange('7days')">最近7天</FilterTab>
-					<FilterTab :active="activeDateRange === '30days'" @click="setDateRange('30days')">最近30天</FilterTab>
-					<FilterTab :active="activeDateRange === 'custom'" @click="setDateRange('custom')">自定义</FilterTab>
-				</FilterTabs>
-			</view>
-
-			<view v-if="activeDateRange === 'custom'" class="custom-date-picker card">
-				<picker mode="date" :value="customDate.start" @change="handleCustomDateChange($event, 'start')">
-					<view class="picker-item">{{ customDate.start }}</view>
-				</picker>
-				<view class="date-separator">至</view>
-				<picker mode="date" :value="customDate.end" @change="handleCustomDateChange($event, 'end')">
-					<view class="picker-item">{{ customDate.end }}</view>
-				</picker>
-			</view>
-
-			<view v-if="isLoading" class="loading-spinner">
-				<text>加载中...</text>
-			</view>
-			<template v-else-if="statsData.length > 0">
-				<view class="summary-card">
-					<div>
-						<view class="value">{{ kpi.totalCount }}</view>
-						<view class="label">总产量</view>
-					</div>
-					<div>
-						<view class="value">{{ kpi.varietyCount }}</view>
-						<view class="label">面包种类</view>
-					</div>
-					<div>
-						<view class="value">{{ kpi.totalTasks }}</view>
-						<view class="label">任务总数</view>
-					</div>
+		<DetailPageLayout>
+			<view class="page-content">
+				<view class="date-range-selector">
+					<FilterTabs>
+						<FilterTab :active="activeDateRange === 'week'" @click="setDateRange('week')">本周</FilterTab>
+						<FilterTab :active="activeDateRange === 'month'" @click="setDateRange('month')">本月</FilterTab>
+						<FilterTab :active="activeDateRange === '7days'" @click="setDateRange('7days')">最近7天</FilterTab>
+						<FilterTab :active="activeDateRange === '30days'" @click="setDateRange('30days')">最近30天
+						</FilterTab>
+						<FilterTab :active="activeDateRange === 'custom'" @click="setDateRange('custom')">自定义
+						</FilterTab>
+					</FilterTabs>
 				</view>
 
-				<view class="card">
-					<view class="card-title">产量排行 Top 10</view>
-					<BarChart :chart-data="statsData.slice(0, 10)" unit="个" />
+				<view v-if="activeDateRange === 'custom'" class="custom-date-picker card">
+					<picker mode="date" :value="customDate.start" @change="handleCustomDateChange($event, 'start')">
+						<view class="picker-item">{{ customDate.start }}</view>
+					</picker>
+					<view class="date-separator">至</view>
+					<picker mode="date" :value="customDate.end" @change="handleCustomDateChange($event, 'end')">
+						<view class="picker-item">{{ customDate.end }}</view>
+					</picker>
 				</view>
 
-				<view class="card">
-					<view class="card-title">详细数据</view>
-					<view class="stats-table">
-						<view class="table-header">
-							<text class="col-rank">#</text>
-							<text class="col-name">产品名称</text>
-							<text class="col-count">制作数量</text>
-							<text class="col-percent">占比</text>
-						</view>
-						<view v-for="(item, index) in statsData" :key="item.name" class="table-row">
-							<text class="col-rank">{{ index + 1 }}</text>
-							<text class="col-name">{{ item.name }}</text>
-							<text class="col-count">{{ item.value }}</text>
-							<text class="col-percent">{{ getPercentage(item.value) }}</text>
+				<view v-if="isLoading" class="loading-spinner">
+					<text>加载中...</text>
+				</view>
+				<template v-else-if="statsData.length > 0">
+					<view class="summary-card">
+						<div>
+							<view class="value">{{ kpi.totalCount }}</view>
+							<view class="label">总产量</view>
+						</div>
+						<div>
+							<view class="value">{{ kpi.varietyCount }}</view>
+							<view class="label">面包种类</view>
+						</div>
+						<div>
+							<view class="value">{{ kpi.totalTasks }}</view>
+							<view class="label">任务总数</view>
+						</div>
+					</view>
+
+					<view class="card">
+						<view class="card-title">产量排行 Top 10</view>
+						<BarChart :chart-data="statsData.slice(0, 10)" unit="个" />
+					</view>
+
+					<view class="card">
+						<view class="card-title">详细数据</view>
+						<view class="stats-table">
+							<view class="table-header">
+								<text class="col-rank">#</text>
+								<text class="col-name">产品名称</text>
+								<text class="col-count">制作数量</text>
+								<text class="col-percent">占比</text>
+							</view>
+							<view v-for="(item, index) in statsData" :key="item.name" class="table-row">
+								<text class="col-rank">{{ index + 1 }}</text>
+								<text class="col-name">{{ item.name }}</text>
+								<text class="col-count">{{ item.value }}</text>
+								<text class="col-percent">{{ getPercentage(item.value) }}</text>
+							</view>
 						</view>
 					</view>
+				</template>
+				<view v-else class="empty-state">
+					<text>选定时间范围内暂无已完成的生产数据</text>
 				</view>
-			</template>
-			<view v-else class="empty-state">
-				<text>选定时间范围内暂无已完成的生产数据</text>
 			</view>
-		</view>
+		</DetailPageLayout>
 	</view>
 </template>
 
@@ -79,7 +83,8 @@
 	import FilterTabs from '@/components/FilterTabs.vue';
 	import FilterTab from '@/components/FilterTab.vue';
 	import BarChart from '@/components/BarChart.vue';
-	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader 组件
+	import DetailHeader from '@/components/DetailHeader.vue';
+	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import type { RecipeStatDto } from '@/types/api';
 
 	const isLoading = ref(true);
@@ -187,6 +192,12 @@
 
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
+
+	.page-wrapper {
+		display: flex;
+		flex-direction: column;
+		height: 100vh;
+	}
 
 	.date-range-selector {
 		margin-bottom: 20px;

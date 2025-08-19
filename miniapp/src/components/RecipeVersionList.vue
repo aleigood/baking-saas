@@ -1,16 +1,15 @@
 <template>
-	<view class="card card-full-bleed-list">
+	<view class="card-full-bleed-list">
 		<view class="card-title-wrapper">
-			<!-- [修改] 将标题和标签放在一个容器中，以实现紧邻效果 -->
 			<view class="title-with-tag">
 				<span class="card-title">配方版本</span>
 				<span v-if="isDiscontinued" class="status-tag discontinued">已停用</span>
 			</view>
 		</view>
 		<template v-if="versions.length > 0">
-			<ListItem v-for="version in versions" :key="version.id"
-				:class="{ 'item-selected': selectedVersionId === version.id }" @click="$emit('select-version', version)"
-				@longpress="$emit('longpress-version', version)" :vibrate-on-long-press="canEdit && !version.isActive">
+			<ListItem v-for="(version) in versions" :key="version.id" :selected="selectedVersionId === version.id"
+				@click="$emit('select-version', version)" @longpress="$emit('longpress-version', version)"
+				:vibrate-on-long-press="canEdit && !version.isActive" :bleed="true" :divider="true">
 				<view class="main-info">
 					<view class="name">{{ version.notes || `版本 ${version.version}` }}
 						(v{{ version.version }})</view>
@@ -60,31 +59,16 @@
 </script>
 
 <style scoped lang="scss">
-	@import '@/styles/common.scss';
-
-	.list-item {
-		position: relative;
-		cursor: pointer;
-		transition: background-color 0.2s ease;
-	}
-
-	.list-item.item-selected {
-		background-color: transparent;
-	}
-
-	.list-item.item-selected::before {
-		content: '';
-		position: absolute;
-		left: 0;
-		top: 50%;
-		transform: translateY(-50%);
-		width: 4px;
-		height: 50%;
-		background-color: var(--primary-color);
-		border-radius: 0 4px 4px 0;
-	}
+	/* [兼容性修复] 引入 Mixin，将列表项内容的样式应用到当前组件作用域 */
+	@include list-item-content-style;
 
 	.card-full-bleed-list {
+		background: var(--card-bg);
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+		border-radius: 20px;
+		margin-bottom: 20px;
+		padding-top: 20px;
+		padding-bottom: 20px;
 		padding-left: 0;
 		padding-right: 0;
 	}
@@ -94,22 +78,14 @@
 		padding-right: 20px;
 	}
 
-	.card-full-bleed-list .list-item {
-		padding-left: 20px;
-		padding-right: 20px;
-	}
-
-	/* [新增] 标题和标签的容器样式 */
 	.title-with-tag {
 		display: flex;
 		align-items: center;
 		gap: 10px;
-		/* 标题和标签之间的间距 */
 	}
 
 	.title-with-tag .card-title {
 		margin-bottom: 0;
-		/* 移除标题的下边距 */
 	}
 
 	.status-tag {

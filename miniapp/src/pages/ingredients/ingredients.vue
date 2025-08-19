@@ -1,17 +1,19 @@
 <template>
 	<view>
-		<MainHeader />
-		<view class="page-content page-content-with-tabbar-fab">
-			<FilterTabs>
-				<FilterTab :active="ingredientFilter === 'all'" @click="ingredientFilter = 'all'">全部</FilterTab>
-				<FilterTab :active="ingredientFilter === 'low'" @click="ingredientFilter = 'low'">库存紧张</FilterTab>
-			</FilterTabs>
+		<view class="page-content page-content-with-tabbar-fab no-horizontal-padding">
+			<view class="content-padding">
+				<FilterTabs>
+					<FilterTab :active="ingredientFilter === 'all'" @click="ingredientFilter = 'all'">全部</FilterTab>
+					<FilterTab :active="ingredientFilter === 'low'" @click="ingredientFilter = 'low'">库存紧张</FilterTab>
+				</FilterTabs>
+			</view>
 
 			<view class="list-wrapper" @touchstart="handleTouchStart" @touchend="handleTouchEnd">
 				<template v-if="ingredientFilter === 'all'">
 					<template v-if="allIngredients.length > 0">
-						<ListItem v-for="ing in allIngredients" :key="ing.id" @click="navigateToDetail(ing.id)"
-							@longpress="openIngredientActions(ing)" :vibrate-on-long-press="canEdit">
+						<ListItem v-for="(ing, index) in allIngredients" :key="ing.id" @click="navigateToDetail(ing.id)"
+							@longpress="openIngredientActions(ing)" :vibrate-on-long-press="canEdit" :bleed="true"
+							:divider="index < allIngredients.length - 1">
 							<view class="main-info">
 								<view class="name">{{ ing.name }}</view>
 								<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
@@ -33,8 +35,10 @@
 
 				<template v-if="ingredientFilter === 'low'">
 					<template v-if="lowStockIngredients.length > 0">
-						<ListItem v-for="ing in lowStockIngredients" :key="ing.id" @click="navigateToDetail(ing.id)"
-							@longpress="openIngredientActions(ing)" :vibrate-on-long-press="canEdit">
+						<ListItem v-for="(ing, index) in lowStockIngredients" :key="ing.id"
+							@click="navigateToDetail(ing.id)" @longpress="openIngredientActions(ing)"
+							:vibrate-on-long-press="canEdit" :bleed="true"
+							:divider="index < lowStockIngredients.length - 1">
 							<view class="main-info">
 								<view class="name">{{ ing.name }}</view>
 								<view class="desc">品牌: {{ ing.activeSku?.brand || '未设置' }}</view>
@@ -58,8 +62,7 @@
 		<AppModal :visible="uiStore.showIngredientActionsModal"
 			@update:visible="uiStore.closeModal(MODAL_KEYS.INGREDIENT_ACTIONS)" title="原料操作" :no-header-line="true">
 			<view class="options-list">
-				<!-- [修改] 移除 danger-text class -->
-				<ListItem class="option-item" @click="handleDeleteIngredient">
+				<ListItem class="option-item" @click="handleDeleteIngredient" :bleed="true">
 					<view class="main-info">
 						<view class="name">删除原料</view>
 					</view>
@@ -72,7 +75,6 @@
 			<view class="modal-prompt-text">
 				确定要删除 “{{ selectedIngredient?.name }}” 吗？
 			</view>
-			<!-- [修改] 更新警告信息文案 -->
 			<view class="modal-warning-text">
 				已被配方使用的原料将无法被删除。
 			</view>
@@ -97,7 +99,6 @@
 	import { deleteIngredient } from '@/api/ingredients';
 	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import type { Ingredient } from '@/types/api';
-	import MainHeader from '@/components/MainHeader.vue';
 	import AppFab from '@/components/AppFab.vue';
 	import ListItem from '@/components/ListItem.vue';
 	import FilterTabs from '@/components/FilterTabs.vue';
@@ -215,6 +216,9 @@
 			await deleteIngredient(selectedIngredient.value.id);
 			toastStore.show({ message: '删除成功', type: 'success' });
 			await dataStore.fetchIngredientsData();
+		} catch (error) { // [新增] 捕获API请求可能抛出的错误
+			// 错误信息已在 request 工具函数中通过 toast 显示
+			console.error("Failed to delete ingredient:", error);
 		} finally {
 			isSubmitting.value = false;
 			uiStore.closeModal(MODAL_KEYS.DELETE_INGREDIENT_CONFIRM);
@@ -225,20 +229,13 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
-	.list-wrapper {
-		min-height: 60vh;
-	}
+	/* [兼容性修复] 引入 Mixin，将列表项内容的样式应用到当前页面作用域 */
+	@include list-item-content-style;
+	/* [核心修复] 修正 Mixin 的名称 */
+	@include list-item-option-style;
 
-	.list-wrapper :deep(.list-item) {
-		margin-left: -15px;
-		margin-right: -15px;
-		padding-left: 20px;
-		padding-right: 20px;
-	}
-
-	.list-wrapper :deep(.list-item:not(:last-child)::after) {
-		left: 20px;
-		right: 20px;
+	.content-padding {
+		padding: 0 15px;
 	}
 
 	.side-info .consumption {

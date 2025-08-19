@@ -1,50 +1,55 @@
 <template>
-	<view class="page-container">
-		<!-- [重构] 使用 DetailHeader 组件 -->
+	<!-- [新增] 1. 添加 page-meta 禁止页面级滚动并设置背景色 -->
+	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
+	<!-- [修改] 2. 将根节点改为 page-wrapper 以应用 flex 布局 -->
+	<view class="page-wrapper">
 		<DetailHeader title="任务详情" />
-		<view class="page-content" v-if="!isLoading && task">
-			<view class="detail-page">
-				<view class="tag-group">
-					<span class="tag">日期: {{ formattedDate }}</span>
-					<span class="tag">创建人: {{ creatorName }}</span>
-					<span class="tag">计划总数: {{ totalQuantity }}</span>
-				</view>
+		<!-- [修改] 3. 使用 DetailPageLayout 组件包裹滚动内容 -->
+		<DetailPageLayout>
+			<view class="page-content" v-if="!isLoading && task">
+				<view class="detail-page">
+					<view class="tag-group">
+						<span class="tag">日期: {{ formattedDate }}</span>
+						<span class="tag">创建人: {{ creatorName }}</span>
+						<span class="tag">计划总数: {{ totalQuantity }}</span>
+					</view>
 
-				<view class="task-summary-card">
-					<view class="product-grid-title">产品列表</view>
-					<view v-for="group in groupedProducts" :key="group.familyName" class="product-group">
-						<view class="product-group-title">{{ group.familyName }}</view>
-						<view class="product-grid">
-							<view v-for="product in group.products" :key="product.id" class="product-grid-item">
-								{{ product.name }} x{{ product.quantity }}
+					<view class="task-summary-card">
+						<view class="product-grid-title">产品列表</view>
+						<view v-for="group in groupedProducts" :key="group.familyName" class="product-group">
+							<view class="product-group-title">{{ group.familyName }}</view>
+							<view class="product-grid">
+								<view v-for="product in group.products" :key="product.id" class="product-grid-item">
+									{{ product.name }} x{{ product.quantity }}
+								</view>
 							</view>
 						</view>
 					</view>
-				</view>
 
-				<view v-for="(recipeCard) in recipeCards" :key="recipeCard.recipeName" class="card">
-					<view class="group-title" @click="toggleCard(recipeCard.recipeName)">
-						<span>{{ recipeCard.recipeName }}</span>
-						<span class="arrow"
-							:class="{ collapsed: openCardName !== recipeCard.recipeName }">&#10094;</span>
-					</view>
-					<view v-show="openCardName === recipeCard.recipeName" class="product-list">
-						<view v-for="ingredient in recipeCard.ingredients" :key="ingredient.name"
-							class="ingredient-item">
-							<view class="product-name">{{ ingredient.name }}</view>
-							<view class="quantity">{{ ingredient.amount.toFixed(1) }} g</view>
+					<view v-for="(recipeCard) in recipeCards" :key="recipeCard.recipeName" class="card">
+						<view class="group-title" @click="toggleCard(recipeCard.recipeName)">
+							<span>{{ recipeCard.recipeName }}</span>
+							<span class="arrow"
+								:class="{ collapsed: openCardName !== recipeCard.recipeName }">&#10094;</span>
+						</view>
+						<view v-show="openCardName === recipeCard.recipeName" class="product-list">
+							<view v-for="ingredient in recipeCard.ingredients" :key="ingredient.name"
+								class="ingredient-item">
+								<view class="product-name">{{ ingredient.name }}</view>
+								<view class="quantity">{{ ingredient.amount.toFixed(1) }} g</view>
+							</view>
 						</view>
 					</view>
-				</view>
 
-				<AppButton type="primary" full-width @click="openCompleteTaskModal">
-					完成任务
-				</AppButton>
+					<AppButton type="primary" full-width @click="openCompleteTaskModal">
+						完成任务
+					</AppButton>
+				</view>
 			</view>
-		</view>
-		<view class="loading-spinner" v-else>
-			<text>加载中...</text>
-		</view>
+			<view class="loading-spinner" v-else>
+				<text>加载中...</text>
+			</view>
+		</DetailPageLayout>
 
 		<AppModal v-model:visible="showCompleteTaskModal" title="确认完成任务">
 			<view class="modal-prompt-text">
@@ -73,7 +78,8 @@
 	import { getTask, updateTaskStatus, completeTask } from '@/api/tasks';
 	import AppModal from '@/components/AppModal.vue';
 	import AppButton from '@/components/AppButton.vue';
-	import DetailHeader from '@/components/DetailHeader.vue'; // [新增] 引入 DetailHeader 组件
+	import DetailHeader from '@/components/DetailHeader.vue';
+	import DetailPageLayout from '@/components/DetailPageLayout.vue'; // [新增] 引入新的布局组件
 
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
@@ -98,7 +104,7 @@
 
 			if (task.value?.status === 'PENDING') {
 				await updateTaskStatus(taskId, 'IN_PROGRESS');
-				dataStore.fetchProductionData();
+				await dataStore.fetchProductionData(); // [修改] 确保状态更新后刷新数据
 			}
 
 			if (recipeCards.value.length > 0) {
@@ -205,6 +211,7 @@
 			await dataStore.fetchProductionData();
 			uni.navigateBack();
 		} catch (error) {
+			// [修改] 增加异常捕获
 			console.error('Failed to complete task:', error);
 		} finally {
 			isSubmitting.value = false;
@@ -237,12 +244,19 @@
 <style scoped lang="scss">
 	@import '@/styles/common.scss';
 
+	/* [新增] 4. 为页面根元素设置 flex 布局 */
+	.page-wrapper {
+		display: flex;
+		flex-direction: column;
+		height: 100vh;
+	}
+
 	.detail-page .tag-group {
 		margin-bottom: 20px;
-		padding: 0 5px;
+		padding: 0px;
 		display: flex;
 		flex-wrap: wrap;
-		gap: 8px;
+		gap: 5px;
 	}
 
 	.task-summary-card {

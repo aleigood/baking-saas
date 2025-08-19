@@ -1,14 +1,17 @@
 {
-	"pages": [{
-			"path": "pages/main/main",
-			"style": {
-				"navigationStyle": "custom"
-			}
-		},
+	"pages": [
+		// [兼容性修复] 将登录页作为第一个页面，设为小程序的默认首页
+		// 这样在 reLaunch 到登录页时，小程序不会显示左上角的“返回首页”图标
 		{
 			"path": "pages/login/login",
 			"style": {
 				"navigationBarTitleText": ""
+			}
+		},
+		{
+			"path": "pages/main/main",
+			"style": {
+				"navigationStyle": "custom"
 			}
 		},
 		{
@@ -64,12 +67,20 @@
 			"style": {
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/personnel/list",
+			"style": {
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "烘焙SaaS",
-		"navigationBarBackgroundColor": "#F8F8F8",
-		"backgroundColor": "#F8F8F8"
+		"navigationBarBackgroundColor": "#fdf8f2",
+		"backgroundColor": "#fdf8f2",
+		"animationType": "slide-in-right",
+		"animationDuration": 300
 	}
 }

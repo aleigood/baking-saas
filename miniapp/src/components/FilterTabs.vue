@@ -11,7 +11,7 @@
 <style scoped lang="scss">
 	.filter-tabs {
 		display: flex;
-		gap: 8px;
+		gap: 12px;
 		/* [样式调整] 减小标签间距 */
 		margin-bottom: 20px;
 		overflow-x: auto;
