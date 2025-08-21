@@ -1,10 +1,7 @@
 <template>
-	<!-- [新增] 1. 添加 page-meta 禁止页面级滚动并设置背景色 -->
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
-	<!-- [修改] 2. 将根节点改为 page-wrapper 以应用 flex 布局 -->
 	<view class="page-wrapper">
 		<DetailHeader title="任务详情" />
-		<!-- [修改] 3. 使用 DetailPageLayout 组件包裹滚动内容 -->
 		<DetailPageLayout>
 			<view class="page-content" v-if="!isLoading && task">
 				<view class="detail-page">
@@ -12,6 +9,8 @@
 						<span class="tag">日期: {{ formattedDate }}</span>
 						<span class="tag">创建人: {{ creatorName }}</span>
 						<span class="tag">计划总数: {{ totalQuantity }}</span>
+						<!-- [修改] 移除tag-warning样式类，使其与其它标签样式完全一致 -->
+						<span v-if="task.stockWarning" class="tag">{{ task.stockWarning }}</span>
 					</view>
 
 					<view class="task-summary-card">
@@ -81,6 +80,11 @@
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue'; // [新增] 引入新的布局组件
 
+	// [新增] 禁用属性继承，以解决多根节点组件的警告
+	defineOptions({
+		inheritAttrs: false
+	});
+
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 	const toastStore = useToastStore();
@@ -130,6 +134,7 @@
 		}[]>();
 
 		task.value.items.forEach(item => {
+			// [恢复] 恢复从任务详情数据中直接获取配方家族名称
 			const familyName = item.product.recipeVersion.family.name;
 			if (!groups.has(familyName)) {
 				groups.set(familyName, []);
@@ -154,6 +159,7 @@
 
 		task.value.items.forEach(item => {
 			const product = item.product;
+			// [恢复] 恢复原来的逻辑，直接从任务详情数据中获取配方版本信息
 			if (!product || !product.recipeVersion || !product.recipeVersion.doughs) return;
 
 			const recipeName = product.recipeVersion.family.name;
@@ -257,6 +263,14 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 5px;
+	}
+
+	/* [修改] 移除 .tag-warning 的特殊样式定义 */
+	.tag {
+		/* [新增] 增加对长文本换行的支持 */
+		white-space: normal;
+		text-align: left;
+		line-height: 1.5;
 	}
 
 	.task-summary-card {

@@ -12,6 +12,7 @@ export const useUiStore = defineStore('ui', () => {
 		[MODAL_KEYS.LOGOUT_CONFIRM]: false,
 		[MODAL_KEYS.INVITE]: false,
 		[MODAL_KEYS.TASK_ACTIONS]: false,
+		// [恢复] 恢复采购操作模态框的状态
 		[MODAL_KEYS.PROCUREMENT_ACTIONS]: false,
 		// [新增] 初始化新模态框的状态
 		[MODAL_KEYS.INGREDIENT_ACTIONS]: false,
@@ -27,6 +28,7 @@ export const useUiStore = defineStore('ui', () => {
 	const showLogoutConfirmModal = computed(() => modalVisibility.value[MODAL_KEYS.LOGOUT_CONFIRM]);
 	const showInviteModal = computed(() => modalVisibility.value[MODAL_KEYS.INVITE]);
 	const showTaskActionsModal = computed(() => modalVisibility.value[MODAL_KEYS.TASK_ACTIONS]);
+	// [恢复] 恢复采购操作模态框的 computed 属性
 	const showProcurementActionsModal = computed(() => modalVisibility.value[MODAL_KEYS.PROCUREMENT_ACTIONS]);
 	// [新增] 暴露新模态框的 computed 状态
 	const showIngredientActionsModal = computed(() => modalVisibility.value[MODAL_KEYS.INGREDIENT_ACTIONS]);
@@ -58,7 +60,7 @@ export const useUiStore = defineStore('ui', () => {
 		showLogoutConfirmModal,
 		showInviteModal,
 		showTaskActionsModal,
-		showProcurementActionsModal,
+		showProcurementActionsModal, // [恢复] 
 		showIngredientActionsModal,
 		showDeleteIngredientConfirmModal,
 		showRecipeActionsModal,

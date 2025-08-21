@@ -87,6 +87,11 @@
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import type { RecipeStatDto } from '@/types/api';
 
+	// [新增] 禁用属性继承，以解决多根节点组件的警告
+	defineOptions({
+		inheritAttrs: false
+	});
+
 	const isLoading = ref(true);
 	const activeDateRange = ref<'week' | 'month' | '7days' | '30days' | 'custom'>('week');
 	const statsData = ref<{ name : string, value : number }[]>([]);

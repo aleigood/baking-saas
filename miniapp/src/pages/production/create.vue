@@ -1,10 +1,7 @@
 <template>
-	<!-- 1. 添加 page-meta -->
 	<page-meta page-style="overflow: hidden; background-color: #fdf8f2;"></page-meta>
-	<!-- 2. 根 view class 改为 page-wrapper -->
 	<view class="page-wrapper">
 		<DetailHeader title="新建生产任务" />
-		<!-- 4. 使用 DetailPageLayout 包裹滚动内容 -->
 		<DetailPageLayout>
 			<view class="page-content">
 				<view class="loading-spinner" v-if="isLoading">
@@ -56,6 +53,11 @@
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import type { ProductionTaskDto } from '@/types/api';
 	import Toast from '@/components/Toast.vue';
+
+	// [新增] 禁用属性继承，以解决多根节点组件的警告
+	defineOptions({
+		inheritAttrs: false
+	});
 
 	const dataStore = useDataStore();
 	const isLoading = ref(false);
@@ -126,13 +128,26 @@
 				plannedDate: new Date().toISOString(),
 				products: productsToCreate,
 			};
-			await createTask(payload);
-			uni.hideLoading();
-			toastStore.show({ message: '任务已创建', type: 'success' });
+			// [修改] 接收新的接口返回数据
+			const res = await createTask(payload);
+
+			// [修改] 任务创建成功后，检查是否有库存警告信息
+			if (res.warning) {
+				// [新增] 如果有警告信息，则通过toast提示用户，持续3秒
+				toastStore.show({ message: res.warning, type: 'error', duration: 3000 });
+			} else {
+				// [修改] 如果没有警告信息，显示常规的成功提示
+				toastStore.show({ message: '任务已创建', type: 'success' });
+			}
+
 			await dataStore.fetchProductionData();
-			uni.navigateBack();
+
+			// [修改] 延迟返回，确保用户能看到toast提示
+			setTimeout(() => {
+				uni.navigateBack();
+			}, 500);
+
 		} catch (error) {
-			uni.hideLoading();
 			console.error('Failed to create tasks:', error);
 		} finally {
 			isCreating.value = false;

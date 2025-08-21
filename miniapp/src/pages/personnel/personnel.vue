@@ -51,7 +51,6 @@
 
 <script setup lang="ts">
 	import { computed } from 'vue';
-	import { onShow } from '@dcloudio/uni-app';
 	import { useUserStore } from '@/store/user';
 	import { useDataStore } from '@/store/data';
 	import { useUiStore } from '@/store/ui';
@@ -66,12 +65,6 @@
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
 	const systemStore = useSystemStore();
-
-	onShow(async () => {
-		if (!dataStore.dataLoaded.members) {
-			await dataStore.fetchMembersData();
-		}
-	});
 
 	const currentUserRoleInTenant = computed(
 		() => userStore.userInfo?.tenants.find(t => t.tenant.id === dataStore.currentTenantId)?.role

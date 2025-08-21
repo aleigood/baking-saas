@@ -85,6 +85,11 @@
 	import DetailHeader from '@/components/DetailHeader.vue';
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 
+	// [新增] 禁用属性继承，以解决多根节点组件的警告
+	defineOptions({
+		inheritAttrs: false
+	});
+
 	const userStore = useUserStore();
 	const dataStore = useDataStore();
 	const toastStore = useToastStore();

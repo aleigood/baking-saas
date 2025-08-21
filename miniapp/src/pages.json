@@ -80,7 +80,10 @@
 		"navigationBarTitleText": "烘焙SaaS",
 		"navigationBarBackgroundColor": "#fdf8f2",
 		"backgroundColor": "#fdf8f2",
-		"animationType": "slide-in-right",
-		"animationDuration": 300
+		"app-plus": {
+			// [核心修改] 将 App 端专用的配置移入 app-plus 中，以消除小程序端的警告
+			"animationType": "slide-in-right",
+			"animationDuration": 300
+		}
 	}
 }

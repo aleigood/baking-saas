@@ -59,20 +59,23 @@ export const useDataStore = defineStore('data', () => {
 
 	const productList = computed(() : ProductListItem[] => {
 		const list : ProductListItem[] = [];
-		recipes.value.forEach((family) => {
-			family.versions
-				.filter((v) => v.isActive)
-				.forEach((version) => {
-					version.products.forEach((product) => {
-						list.push({
-							id: product.id,
-							name: product.name,
-							type: family.name,
-							familyId: family.id,
+		// [核心修改] 遍历处理前，先过滤掉已停用的配方
+		recipes.value
+			.filter((family) => !family.deletedAt)
+			.forEach((family) => {
+				family.versions
+					.filter((v) => v.isActive)
+					.forEach((version) => {
+						version.products.forEach((product) => {
+							list.push({
+								id: product.id,
+								name: product.name,
+								type: family.name,
+								familyId: family.id,
+							});
 						});
 					});
-				});
-		});
+			});
 		return list;
 	});
 
@@ -167,13 +170,8 @@ export const useDataStore = defineStore('data', () => {
 	async function fetchIngredientsData() {
 		if (!currentTenantId.value) return;
 		try {
-			const { startDate, endDate } = getMonthDateRange();
-			const [ingredientData, ingredientStatData] = await Promise.all([
-				getIngredients(),
-				getIngredientStats(startDate, endDate),
-			]);
-			ingredients.value = ingredientData;
-			ingredientStats.value = ingredientStatData;
+			// [重构] 保持此函数不变，原料页面不请求消耗排行
+			ingredients.value = await getIngredients();
 			dataLoaded.value.ingredients = true;
 		} catch (error) {
 			console.error('Failed to fetch ingredients data', error);
@@ -202,7 +200,6 @@ export const useDataStore = defineStore('data', () => {
 			await userStore.fetchUserInfo();
 		} catch (error) {
 			console.error('Failed to switch tenant', error);
-			// [修改] 使用新的 Toast 系统
 			toastStore.show({ message: '切换店铺失败', type: 'error' });
 		}
 	}

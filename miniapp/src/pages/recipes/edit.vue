@@ -68,6 +68,11 @@
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import type { RecipeVersion } from '@/types/api';
 
+	// [新增] 禁用属性继承，以解决多根节点组件的警告
+	defineOptions({
+		inheritAttrs: false
+	});
+
 	const dataStore = useDataStore();
 	const toastStore = useToastStore();
 	const isSubmitting = ref(false);

@@ -87,6 +87,12 @@
 				<input class="input-field" type="number" v-model.number="procurementForm.totalPrice"
 					placeholder="例如：255" />
 			</FormItem>
+			<!-- [新增] 采购日期选择器 -->
+			<FormItem label="采购日期">
+				<picker mode="date" :value="procurementForm.purchaseDate" @change="onNewProcurementDateChange">
+					<view class="picker">{{ procurementForm.purchaseDate }}</view>
+				</picker>
+			</FormItem>
 			<view class="modal-actions">
 				<AppButton type="secondary" @click="showProcurementModal = false">取消</AppButton>
 				<AppButton type="primary" @click="handleCreateProcurement" :loading="isSubmitting">
@@ -140,28 +146,41 @@
 			</view>
 		</AppModal>
 
-		<AppModal v-model:visible="showProcurementOptionsModal" title="采购记录" :no-header-line="true">
+		<!-- [新增] 采购记录操作选项模态框 -->
+		<AppModal :visible="uiStore.showProcurementActionsModal"
+			@update:visible="uiStore.closeModal(MODAL_KEYS.PROCUREMENT_ACTIONS)" title="采购记录" :no-header-line="true">
 			<view class="options-list">
-				<ListItem class="option-item" @click="handleDeleteProcurementOption" :bleed="true">
+				<ListItem class="option-item" @click="handleEditProcurementOption" :bleed="true">
 					<view class="main-info">
-						<view class="name">删除采购记录</view>
+						<view class="name">修改采购记录</view>
 					</view>
 				</ListItem>
 			</view>
 		</AppModal>
 
-		<AppModal :visible="uiStore.showProcurementActionsModal"
-			@update:visible="uiStore.closeModal(MODAL_KEYS.PROCUREMENT_ACTIONS)" title="确认删除">
-			<view class="modal-prompt-text">
-				确定要删除这条采购记录吗？
-			</view>
-			<view class="modal-warning-text">
-				删除此条采购记录将会相应减少该原料的库存量，此操作不可撤销。
-			</view>
+		<!-- [新增] 编辑采购记录模态框 -->
+		<AppModal v-model:visible="showEditProcurementModal" title="编辑采购记录">
+			<!-- [新增] 采购商品信息展示 -->
+			<FormItem label="采购商品">
+				<input class="input-field" :value="editedProcurementSkuName" readonly disabled />
+			</FormItem>
+			<FormItem label="采购数量">
+				<input class="input-field" :value="`${editProcurementForm.packagesPurchased} 包`" readonly disabled />
+			</FormItem>
+			<!-- [修改] 将单价输入改为总价输入 -->
+			<FormItem label="采购总价 (元)">
+				<input class="input-field" type="number" v-model.number="editProcurementForm.totalPrice"
+					placeholder="输入总价" />
+			</FormItem>
+			<FormItem label="采购日期">
+				<picker mode="date" :value="editProcurementForm.purchaseDate" @change="onEditProcurementDateChange">
+					<view class="picker">{{ editProcurementForm.purchaseDate }}</view>
+				</picker>
+			</FormItem>
 			<view class="modal-actions">
-				<AppButton type="secondary" @click="uiStore.closeModal(MODAL_KEYS.PROCUREMENT_ACTIONS)">取消</AppButton>
-				<AppButton type="danger" @click="handleDeleteProcurement" :loading="isSubmitting">
-					{{ isSubmitting ? '删除中...' : '确认删除' }}
+				<AppButton type="secondary" @click="showEditProcurementModal = false">取消</AppButton>
+				<AppButton type="primary" @click="handleUpdateProcurement" :loading="isSubmitting">
+					{{ isSubmitting ? '保存中...' : '确认保存' }}
 				</AppButton>
 			</view>
 		</AppModal>
@@ -177,7 +196,8 @@
 	import { useUiStore } from '@/store/ui';
 	import { useToastStore } from '@/store/toast';
 	import type { Ingredient, IngredientSKU, ProcurementRecord } from '@/types/api';
-	import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient, deleteProcurement, deleteSku } from
+	// [修改] 引入新的 updateProcurement 接口，移除 deleteProcurement
+	import { getIngredient, createSku, createProcurement, setActiveSku, updateIngredient, deleteSku, updateProcurement } from
 		'@/api/ingredients';
 	import { getIngredientCostHistory, getIngredientUsageHistory } from '@/api/costing';
 	import AppModal from '@/components/AppModal.vue';
@@ -196,6 +216,11 @@
 	import DetailPageLayout from '@/components/DetailPageLayout.vue';
 	import { MODAL_KEYS } from '@/constants/modalKeys';
 	import { formatChineseDate } from '@/utils/format';
+
+	// [新增] 禁用属性继承，以解决多根节点组件的警告
+	defineOptions({
+		inheritAttrs: false
+	});
 
 	const dataStore = useDataStore();
 	const uiStore = useUiStore();
@@ -227,7 +252,6 @@
 	const showActivateSkuConfirmModal = ref(false);
 	const showSkuOptionsModal = ref(false);
 	const showDeleteSkuConfirmModal = ref(false);
-	const showProcurementOptionsModal = ref(false);
 	const selectedSkuForAction = ref<IngredientSKU | null>(null);
 	const selectedSkuId = ref<string | null>(null);
 	const selectedProcurementForAction = ref<ProcurementRecord | null>(null);
@@ -239,6 +263,17 @@
 		type: 'STANDARD' as 'STANDARD' | 'UNTRACKED',
 		isFlour: false,
 		waterContent: 0,
+	});
+
+	// [新增] 编辑采购记录模态框相关状态
+	const showEditProcurementModal = ref(false);
+	const editProcurementForm = reactive({
+		id: '',
+		packagesPurchased: 0,
+		pricePerPackage: 0,
+		purchaseDate: '',
+		// [新增] 用于接收总价输入
+		totalPrice: 0,
 	});
 
 	// [核心新增] 定义FAB按钮的动作
@@ -354,6 +389,12 @@
 		return `${sku.brand || '无品牌'} (${sku.specName})`;
 	});
 
+	// [新增] 用于编辑模态框中显示SKU名称
+	const editedProcurementSkuName = computed(() => {
+		if (!selectedSku.value) return '加载中...';
+		return `${selectedSku.value.brand || '无品牌'} (${selectedSku.value.specName})`;
+	});
+
 	const openProcurementModal = () => {
 		if (!ingredient.value?.activeSku?.id) {
 			toastStore.show({ message: '请先激活一个SKU才能进行采购', type: 'error' });
@@ -366,6 +407,11 @@
 			purchaseDate: new Date().toISOString(),
 		};
 		showProcurementModal.value = true;
+	};
+
+	// [新增] 新增采购时，更新采购日期
+	const onNewProcurementDateChange = (e : any) => {
+		procurementForm.value.purchaseDate = e.detail.value;
 	};
 
 	const handleCreateProcurement = async () => {
@@ -486,30 +532,58 @@
 		}
 	};
 
+	// [修改] 长按采购记录，打开操作选项模态框
 	const handleProcurementLongPress = (record : ProcurementRecord) => {
 		selectedProcurementForAction.value = record;
-		showProcurementOptionsModal.value = true;
-	};
-
-	const handleDeleteProcurementOption = () => {
-		showProcurementOptionsModal.value = false;
 		uiStore.openModal(MODAL_KEYS.PROCUREMENT_ACTIONS);
 	};
 
-	const handleDeleteProcurement = async () => {
-		if (!selectedProcurementForAction.value || !ingredient.value) return;
+	// [新增] 从选项模态框中触发，打开编辑模态框
+	const handleEditProcurementOption = () => {
+		uiStore.closeModal(MODAL_KEYS.PROCUREMENT_ACTIONS);
+		if (selectedProcurementForAction.value) {
+			const record = selectedProcurementForAction.value;
+			editProcurementForm.id = record.id;
+			editProcurementForm.packagesPurchased = record.packagesPurchased;
+			// [修改] 计算并填充总价
+			editProcurementForm.totalPrice = Number(record.pricePerPackage) * record.packagesPurchased;
+			editProcurementForm.purchaseDate = new Date(record.purchaseDate).toISOString().split('T')[0];
+			showEditProcurementModal.value = true;
+		}
+	};
+
+	// [新增] 处理编辑采购记录日期变化
+	const onEditProcurementDateChange = (e : any) => {
+		editProcurementForm.purchaseDate = e.detail.value;
+	};
+
+	// [新增] 提交采购记录更新
+	const handleUpdateProcurement = async () => {
+		if (!editProcurementForm.id || !ingredient.value) return;
 		isSubmitting.value = true;
 		try {
-			await deleteProcurement(selectedProcurementForAction.value.id);
-			toastStore.show({ message: '删除成功', type: 'success' });
-			uiStore.closeModal(MODAL_KEYS.PROCUREMENT_ACTIONS);
+			// [修改] 从总价计算单价
+			const pricePerPackage = editProcurementForm.totalPrice / editProcurementForm.packagesPurchased;
+			if (isNaN(pricePerPackage) || pricePerPackage <= 0) {
+				toastStore.show({ message: '请输入有效的采购总价', type: 'error' });
+				isSubmitting.value = false;
+				return;
+			}
+
+			const payload : { pricePerPackage ?: number; purchaseDate ?: string } = {
+				pricePerPackage: Number(pricePerPackage.toFixed(2)), // 保留两位小数
+				purchaseDate: editProcurementForm.purchaseDate
+			};
+
+			await updateProcurement(editProcurementForm.id, payload);
+			toastStore.show({ message: '更新成功', type: 'success' });
+			showEditProcurementModal.value = false;
 			await loadIngredientData(ingredient.value.id);
 			await dataStore.fetchIngredientsData();
 		} catch (error) {
-			uiStore.closeModal(MODAL_KEYS.PROCUREMENT_ACTIONS);
+			console.error("Failed to update procurement:", error);
 		} finally {
 			isSubmitting.value = false;
-			selectedProcurementForAction.value = null;
 		}
 	};
 </script>

@@ -9,6 +9,7 @@ export const MODAL_KEYS = {
 	LOGOUT_CONFIRM: 'logoutConfirm',
 	INVITE: 'invite',
 	TASK_ACTIONS: 'taskActions',
+	// [恢复] 恢复采购操作相关的模态框键名
 	PROCUREMENT_ACTIONS: 'procurementActions',
 	// [新增] 原料和配方操作相关的模态框
 	INGREDIENT_ACTIONS: 'ingredientActions',

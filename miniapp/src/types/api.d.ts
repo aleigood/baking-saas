@@ -153,6 +153,8 @@ export interface ProductionTaskDto {
 	id : string;
 	status : 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 	plannedDate : string;
+	// [新增] 任务的实际完成时间
+	completedAt : string | null;
 	notes : string | null;
 	items : {
 		id : string;
@@ -174,6 +176,14 @@ export interface ProductionTaskDto {
 			};
 		};
 	}[];
+	// [新增] 库存警告信息
+	stockWarning ?: string;
+}
+
+// [新增] 创建生产任务的响应类型
+export interface CreateTaskResponse {
+	task : ProductionTaskDto;
+	warning ?: string;
 }
 
 

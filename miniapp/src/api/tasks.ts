@@ -3,7 +3,8 @@
  * 文件描述: (已更新) 封装所有与生产任务相关的API请求。
  */
 import { request } from '@/utils/request';
-import type { ProductionTaskDto } from '@/types/api';
+// [修改] 导入新的响应类型
+import type { ProductionTaskDto, CreateTaskResponse } from '@/types/api';
 
 /**
  * [REFACTORED] 根据状态获取历史任务列表，并支持分页
@@ -53,8 +54,8 @@ export function createTask(data : {
 	plannedDate : string;
 	notes ?: string;
 	products : { productId : string; quantity : number }[];
-}) : Promise<any> {
-	return request({
+}) : Promise<CreateTaskResponse> { // [修改] 更新返回类型
+	return request<CreateTaskResponse>({ // [修改] 更新返回类型
 		url: '/production-tasks', // 路由已更新
 		method: 'POST',
 		data,
